@@ -1,36 +1,28 @@
-import { MapPin, Waves, Store } from 'lucide-react'
-import SectionTitle from './SectionTitle.jsx'
-
-const iconMap = {
-  MapPin: MapPin,
-  Waves: Waves,
-  Store: Store,
-}
-
 function ProfileSection({ profile }) {
   return (
-    <section id="tanjung-sari" className="section-wrapper section-wrapper--compact umkm-section">
-      <div className="profile-grid">
-        <div className="profile-image fade-up" data-reveal aria-hidden="true"></div>
-        <div className="profile-card fade-up" data-reveal>
-          <SectionTitle
-            label="About Tanjung Sari"
-            heading="Mengenal Tanjung Sari"
-            subtitle={profile.overview}
-          />
-          <div className="info-cards">
-            {profile.cards.map((card) => {
-              const Icon = iconMap[card.icon]
-              return (
-                <article key={card.id} className="info-card">
-                  <div className="info-card__icon">
-                    <Icon size={24} color="#c5a04a" aria-hidden="true" />
-                  </div>
-                  <h3 className="info-card__title">{card.title}</h3>
-                  <p className="info-card__text">{card.description}</p>
-                </article>
-              )
-            })}
+    <section id="about" className="section-wrapper about-profile-section">
+      <div className="about-profile-container">
+        <div className="about-profile-left fade-left" data-reveal>
+          <div className="about-tag">
+            <span className="about-tag__line"></span>
+            <span>About</span>
+          </div>
+          <h2 className="about-heading">
+            Tentang Tanjung Sari
+          </h2>
+          <p className="about-description">
+            {profile?.overview ||
+              'Kelurahan Tanjung Sari merupakan salah satu kelurahan yang terletak di Kecamatan Belakang Padang, Kota Batam, Kepulauan Riau. Wilayah ini memiliki keindahan alam laut yang mempesona serta masyarakat yang ramah dan menjunjung tinggi nilai-nilai budaya dan gotong royong.'}
+          </p>
+        </div>
+
+        <div className="about-profile-right fade-right" data-reveal>
+          <div className="about-image-card">
+            <img
+              src="/assets/images/hero-belakang-padang.jpg"
+              alt="Pesisir Tanjung Sari"
+              className="about-image"
+            />
           </div>
         </div>
       </div>

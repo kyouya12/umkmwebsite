@@ -1,22 +1,73 @@
+import { MapPin, Mail, Phone, ChevronRight } from 'lucide-react'
+
 function Footer() {
   return (
-    <footer className="footer section-wrapper--compact">
-      <div className="footer__inner">
-        <div className="footer__brand">
-          <div>
-            <strong>KKN 55 UMRAH</strong>
+    <footer className="footer-rich">
+      <div className="footer-rich__container">
+        <div className="footer-rich__grid">
+          {/* COLUMN 1: BRAND & LOGO KKN 55 */}
+          <div className="footer-col footer-col--brand">
+            <div className="footer-brand-header">
+              <img
+                src="/assets/images/logo-kkn55.png"
+                alt="Logo KKN 55 UMRAH"
+                className="footer-brand-logo"
+              />
+              <div>
+                <h3 className="footer-brand-title">KKN 55 UMRAH</h3>
+                <span className="footer-brand-sub">Kelurahan Tanjung Sari</span>
+              </div>
+            </div>
           </div>
-          <p>Tanjung Sari Berseri</p>
-          <p>Kelurahan Tanjung Sari</p>
-          <p>Belakang Padang, Batam</p>
+
+          {/* COLUMN 2: QUICK NAVIGATION LINKS */}
+          <div className="footer-col">
+            <h4 className="footer-col-title">Navigasi Halaman</h4>
+            <ul className="footer-nav-list">
+              <li>
+                <a href="#home"><ChevronRight size={14} /> Beranda</a>
+              </li>
+              <li>
+                <a href="#about"><ChevronRight size={14} /> Tentang Tanjung Sari</a>
+              </li>
+              <li>
+                <a href="#umkm"><ChevronRight size={14} /> Highlight UMKM</a>
+              </li>
+              <li>
+                <a href="#galeri"><ChevronRight size={14} /> Galeri Foto</a>
+              </li>
+              <li>
+                <a href="#sponsor"><ChevronRight size={14} /> Mitra & Dukungan</a>
+              </li>
+            </ul>
+          </div>
+
+          {/* COLUMN 3: ADDRESS & CONTACT INFO */}
+          <div className="footer-col">
+            <h4 className="footer-col-title">Alamat & Kontak</h4>
+            <ul className="footer-contact-list">
+              <li>
+                <MapPin size={18} className="footer-contact-icon" />
+                <span>Kelurahan Tanjung Sari, Kec. Belakang Padang, Kota Batam, Kepulauan Riau</span>
+              </li>
+              <li>
+                <Mail size={18} className="footer-contact-icon" />
+                <span>kkn55.tanjungsari@umrah.ac.id</span>
+              </li>
+              <li>
+                <Phone size={18} className="footer-contact-icon" />
+                <span>+62 812-3456-7890</span>
+              </li>
+            </ul>
+          </div>
         </div>
-        <div className="footer__nav" aria-label="Footer navigation">
-          <a href="#home">Home</a>
-          <a href="#tanjung-sari">Tanjung Sari</a>
-          <a href="#umkm">UMKM</a>
-          <a href="#about">About</a>
+
+        {/* BOTTOM COPYRIGHT BAR */}
+        <div className="footer-rich__bottom">
+          <p className="footer-copyright-text">
+            © 2026 <strong>KKN 55 UMRAH Tanjung Sari</strong> — Belakang Padang, Kota Batam. All rights reserved.
+          </p>
         </div>
-        <p className="footer__copyright">© 2026 KKN 55 UMRAH — Kelurahan Tanjung Sari</p>
       </div>
     </footer>
   )

@@ -3,12 +3,12 @@ import { Menu, X } from 'lucide-react'
 
 const navItems = [
   { label: 'Home', href: '#home' },
-  { label: 'Tanjung Sari', href: '#tanjung-sari' },
-  { label: 'UMKM', href: '#umkm' },
   { label: 'About', href: '#about' },
+  { label: 'Galeri', href: '#galeri' },
+  { label: 'Sponsor', href: '#sponsor' },
 ]
 
-function Navbar({ isSolid }) {
+function Navbar({ isSolid, onNavigateToHome, onNavigateToUmkmPage, isCatalogPage }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
@@ -21,22 +21,53 @@ function Navbar({ isSolid }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  const handleBrandClick = (e) => {
+    if (isCatalogPage) {
+      e.preventDefault()
+      onNavigateToHome()
+    }
+  }
+
+  const handleExploreClick = (e) => {
+    e.preventDefault()
+    setMenuOpen(false)
+    onNavigateToUmkmPage()
+  }
+
   return (
     <header className={`navbar ${isSolid ? 'navbar--solid' : 'navbar--transparent'} section-wrapper section-wrapper--nav`}>
-      <a className="navbar__brand" href="#home">
-        <strong>KKN 55</strong> UMRAH
+      <a className="navbar__brand" href="#home" onClick={handleBrandClick}>
+        <div className="navbar__title-group">
+          <span className="navbar__title">Kelurahan Tanjung Sari</span>
+        </div>
       </a>
       <nav className="navbar__menu" aria-label="Primary navigation">
         {navItems.map((item) => (
-          <a key={item.href} className="navbar__link" href={item.href}>
+          <a
+            key={item.href}
+            className="navbar__link"
+            href={item.href}
+            onClick={(e) => {
+              if (item.label === 'UMKM') {
+                handleExploreClick(e)
+              } else if (isCatalogPage) {
+                e.preventDefault()
+                onNavigateToHome()
+                setTimeout(() => {
+                  const target = document.querySelector(item.href)
+                  if (target) target.scrollIntoView({ behavior: 'smooth' })
+                }, 100)
+              }
+            }}
+          >
             {item.label}
           </a>
         ))}
       </nav>
       <div className="navbar__actions">
-        <a className="button button--primary" href="#umkm">
+        <button className="button button--primary" onClick={handleExploreClick}>
           Explore UMKM
-        </a>
+        </button>
       </div>
       <button
         className="navbar__toggle"
@@ -48,13 +79,32 @@ function Navbar({ isSolid }) {
       </button>
       <div className={`mobile-menu ${menuOpen ? 'open' : ''}`}>
         {navItems.map((item) => (
-          <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
+          <a
+            key={item.href}
+            href={item.href}
+            onClick={(e) => {
+              setMenuOpen(false)
+              if (item.label === 'UMKM') {
+                handleExploreClick(e)
+              } else if (isCatalogPage) {
+                e.preventDefault()
+                onNavigateToHome()
+                setTimeout(() => {
+                  const target = document.querySelector(item.href)
+                  if (target) target.scrollIntoView({ behavior: 'smooth' })
+                }, 100)
+              }
+            }}
+          >
             {item.label}
           </a>
         ))}
-        <a className="button button--primary" href="#umkm" onClick={() => setMenuOpen(false)}>
+        <button
+          className="button button--primary"
+          onClick={handleExploreClick}
+        >
           Explore UMKM
-        </a>
+        </button>
       </div>
     </header>
   )

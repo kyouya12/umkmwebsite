@@ -1,47 +1,43 @@
-import { useState } from 'react'
-import SectionTitle from './SectionTitle.jsx'
-import UmkmGrid from './UmkmGrid.jsx'
-import UmkmModal from './UmkmModal.jsx'
+function FeaturedUmkm({ umkmList = [] }) {
+  const highlightItem = umkmList.find((item) => item.featured) || umkmList[0]
 
-function FeaturedUmkm({ featured, others, onViewDetail }) {
-  const [showMore, setShowMore] = useState(false)
+  if (!highlightItem) return null
 
   return (
-    <section id="umkm" className="section-wrapper section-wrapper--compact umkm-section">
-      <div className="featured-umkm fade-up" data-reveal>
-        <SectionTitle
-          label="Local UMKM"
-          heading="Explore Local UMKM"
-          subtitle="Temukan cerita, produk, dan usaha lokal dari Tanjung Sari."
-        />
-        <div className="featured-umkm__panel">
-          <span className="featured-umkm__tag">Featured</span>
-          <h3 className="featured-umkm__title">{featured.name}</h3>
-          <div className="featured-umkm__meta">
-            <span>{featured.category}</span>
-            <span>{featured.location}</span>
+    <section id="umkm" className="section-wrapper umkm-profile-section">
+      <div className="about-profile-container">
+        {/* Left Column: Image */}
+        <div className="about-profile-left fade-left" data-reveal>
+          <div className="about-image-card">
+            <img
+              src={highlightItem.image}
+              alt={highlightItem.name}
+              className="about-image"
+              onError={(e) => {
+                e.target.onerror = null
+                e.target.src = '/assets/images/tanjung-sari.jpg'
+              }}
+            />
           </div>
-          <p className="featured-umkm__description">{featured.description}</p>
-          <button className="button button--primary" type="button" onClick={() => onViewDetail(featured)}>
-            See More
-          </button>
         </div>
-        <div className="featured-umkm__image"></div>
+
+        {/* Right Column: Text & Description */}
+        <div className="about-profile-right fade-right" data-reveal>
+          <div className="about-tag">
+            <span className="about-tag__line"></span>
+            <span>Highlight UMKM</span>
+          </div>
+          <h2 className="about-heading">
+            {highlightItem.name}
+          </h2>
+
+          <p className="about-description">
+            {highlightItem.description}
+          </p>
+        </div>
       </div>
-      <div className="extra-section">
-        {showMore ? (
-          <UmkmGrid umkmList={others} onViewDetail={onViewDetail} />
-        ) : (
-          <button className="button button--secondary" type="button" onClick={() => setShowMore(true)}>
-            See More UMKM
-          </button>
-        )}
-      </div>
-      {showMore && <div className="wave-divider"></div>}
     </section>
   )
 }
-
-FeaturedUmkm.Modal = UmkmModal
 
 export default FeaturedUmkm
