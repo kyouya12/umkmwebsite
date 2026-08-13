@@ -135,3 +135,180 @@ export async function deleteGalleryFromSupabase(id) {
   }
 }
 
+/**
+ * Helper Ambil Data Sponsor dari Supabase Database
+ */
+export async function getSponsorsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('sponsors')
+      .select('*')
+      .order('id', { ascending: false })
+
+    if (error) {
+      console.warn('Supabase sponsors fetch warning:', error.message)
+      return null
+    }
+
+    return data || []
+  } catch (err) {
+    console.warn('Supabase fetch exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Tambah Sponsor ke Supabase Database
+ */
+export async function addSponsorToSupabase(item) {
+  try {
+    const { data, error } = await supabase
+      .from('sponsors')
+      .insert([item])
+      .select()
+
+    if (error) {
+      console.warn('Supabase add sponsor error:', error.message)
+      return null
+    }
+    return data
+  } catch (err) {
+    console.warn('Supabase add sponsor exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Update Sponsor di Supabase Database
+ */
+export async function updateSponsorInSupabase(id, item) {
+  try {
+    const { data, error } = await supabase
+      .from('sponsors')
+      .update(item)
+      .eq('id', id)
+      .select()
+
+    if (error) {
+      console.warn('Supabase update sponsor error:', error.message)
+      return null
+    }
+    return data
+  } catch (err) {
+    console.warn('Supabase update sponsor exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Hapus Sponsor dari Supabase Database
+ */
+export async function deleteSponsorFromSupabase(id) {
+  try {
+    const { error } = await supabase
+      .from('sponsors')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.warn('Supabase delete sponsor error:', error.message)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.warn('Supabase delete sponsor exception:', err)
+    return false
+  }
+}
+
+/**
+ * Helper Ambil Data About Profile dari Supabase Database
+ */
+export async function getAboutProfileFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('about_profile')
+      .select('*')
+      .eq('id', 1)
+      .single()
+
+    if (error) {
+      console.warn('Supabase about_profile fetch warning:', error.message)
+      return null
+    }
+
+    return data
+  } catch (err) {
+    console.warn('Supabase fetch about_profile exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Simpan / Update Data About Profile ke Supabase Database
+ */
+export async function saveAboutProfileToSupabase(payload) {
+  try {
+    const { data, error } = await supabase
+      .from('about_profile')
+      .upsert([{ id: 1, ...payload, updated_at: new Date().toISOString() }])
+      .select()
+
+    if (error) {
+      console.warn('Supabase save about_profile error:', error.message)
+      return null
+    }
+    return data ? data[0] : null
+  } catch (err) {
+    console.warn('Supabase save about_profile exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Ambil Data Activity Logs dari Supabase Database
+ */
+export async function getActivityLogsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(40)
+
+    if (error) {
+      console.warn('Supabase activity_logs fetch warning:', error.message)
+      return null
+    }
+
+    return data || []
+  } catch (err) {
+    console.warn('Supabase fetch activity_logs exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Tambah Activity Log Baru ke Supabase Database
+ */
+export async function addActivityLogToSupabase(logItem) {
+  try {
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .insert([logItem])
+      .select()
+
+    if (error) {
+      console.warn('Supabase add activity_log error:', error.message)
+      return null
+    }
+    return data
+  } catch (err) {
+    console.warn('Supabase add activity_log exception:', err)
+    return null
+  }
+}
+
+
+
+

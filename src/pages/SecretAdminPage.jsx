@@ -21,11 +21,32 @@ import {
   ShieldAlert,
   Upload,
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  Handshake,
+  Info,
+  Activity,
+  History,
+  Sparkles,
+  FileText
 } from 'lucide-react'
-import { supabase, getGalleryFromSupabase, addGalleryToSupabase, updateGalleryInSupabase, deleteGalleryFromSupabase } from '../lib/supabase.js'
+import {
+  supabase,
+  getGalleryFromSupabase,
+  addGalleryToSupabase,
+  updateGalleryInSupabase,
+  deleteGalleryFromSupabase,
+  getSponsorsFromSupabase,
+  addSponsorToSupabase,
+  updateSponsorInSupabase,
+  deleteSponsorFromSupabase,
+  getAboutProfileFromSupabase,
+  saveAboutProfileToSupabase
+} from '../lib/supabase.js'
 import umkmData from '../data/umkm.js'
 import { getStoredGalleryItems, saveStoredGalleryItems, fetchGalleryItemsWithSupabase, initialGalleryItems } from '../data/gallery.js'
+import { getStoredSponsors, saveStoredSponsors, fetchSponsorsWithSupabase } from '../data/sponsors.js'
+import { getStoredAboutProfile, saveStoredAboutProfile, fetchAboutProfileWithSupabase } from '../data/profile.js'
+import { getStoredActivityLogs, fetchActivityLogsWithSupabase, createActivityLog } from '../data/activityLogs.js'
 
 // Helper Sanitasi & Deteksi Injeksi Keamanan (SQLi, XSS, CSS/Script Injection)
 const sanitizeInput = (str) => {
@@ -82,7 +103,7 @@ function SecretAdminPage() {
   const [lockoutTimer, setLockoutTimer] = useState(0)
 
   // Admin Navigation Tab State
-  const [activeTab, setActiveTab] = useState('umkm') // 'dashboard' | 'umkm' | 'gallery' | 'settings'
+  const [activeTab, setActiveTab] = useState('umkm') // 'dashboard' | 'umkm' | 'gallery' | 'sponsors' | 'about'
 
   // CRUD Mockup UMKM State
   const [searchQuery, setSearchQuery] = useState('')
@@ -102,16 +123,55 @@ function SecretAdminPage() {
   const [previewGalleryItem, setPreviewGalleryItem] = useState(null)
   const [toastMessage, setToastMessage] = useState('')
 
+  // CRUD Logo Sponsor State
+  const [sponsorsItems, setSponsorsItems] = useState(getStoredSponsors())
+  const [showSponsorModal, setShowSponsorModal] = useState(false)
+  const [editingSponsorItem, setEditingSponsorItem] = useState(null)
+  const [sponsorForm, setSponsorForm] = useState({
+    name: '',
+    image: ''
+  })
+  const [previewSponsorItem, setPreviewSponsorItem] = useState(null)
+
+  // CRUD Section About State
+  const [aboutForm, setAboutForm] = useState(getStoredAboutProfile())
+  const [savingAbout, setSavingAbout] = useState(false)
+
+  // Activity Audit Logs State
+  const [activityLogs, setActivityLogs] = useState(getStoredActivityLogs())
+
   // Initial Fetch dari Supabase Database saat Komponen Dimuat
   useEffect(() => {
-    async function loadSupabaseGalleryData() {
-      const data = await fetchGalleryItemsWithSupabase()
-      if (data && data.length > 0) {
-        setGalleryItems(data)
+    async function loadSupabaseData() {
+      const galleryData = await fetchGalleryItemsWithSupabase()
+      if (galleryData && galleryData.length > 0) {
+        setGalleryItems(galleryData)
+      }
+      const sponsorData = await fetchSponsorsWithSupabase()
+      if (sponsorData && sponsorData.length > 0) {
+        setSponsorsItems(sponsorData)
+      }
+      const aboutData = await fetchAboutProfileWithSupabase()
+      if (aboutData) {
+        setAboutForm(aboutData)
+      }
+      const logsData = await fetchActivityLogsWithSupabase()
+      if (logsData && logsData.length > 0) {
+        setActivityLogs(logsData)
       }
     }
-    loadSupabaseGalleryData()
+    loadSupabaseData()
+
+    const handleLogsChange = () => {
+      setActivityLogs(getStoredActivityLogs())
+    }
+
+    window.addEventListener('activityLogsChanged', handleLogsChange)
+    return () => window.removeEventListener('activityLogsChanged', handleLogsChange)
   }, [])
+
+
+
 
   // Toast Notification Auto Dismiss
   useEffect(() => {
@@ -175,6 +235,7 @@ function SecretAdminPage() {
             : item
         )
         updateGalleryState(updated)
+        await createActivityLog('EDIT', 'Galeri', `Memperbarui foto galeri "${updatedPayload.title}"`)
         setToastMessage('Foto & 2 Judul Galeri berhasil diperbarui!')
       } else {
         // Mode Tambah (Sync Supabase DB + Local)
@@ -189,6 +250,7 @@ function SecretAdminPage() {
 
         const updated = [newItem, ...galleryItems]
         updateGalleryState(updated)
+        await createActivityLog('TAMBAH', 'Galeri', `Menambahkan foto galeri "${newItem.title}"`)
         setToastMessage('Foto & 2 Judul Galeri baru berhasil ditambahkan!')
       }
 
@@ -201,9 +263,11 @@ function SecretAdminPage() {
 
   const handleDeleteGalleryItem = async (id) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus foto galeri ini?')) {
+      const deletedItem = galleryItems.find((i) => i.id === id)
       await deleteGalleryFromSupabase(id)
       const updated = galleryItems.filter((item) => item.id !== id)
       updateGalleryState(updated)
+      await createActivityLog('HAPUS', 'Galeri', `Menghapus foto galeri "${deletedItem?.title || 'ID #' + id}"`)
       setToastMessage('Foto galeri berhasil dihapus (Diperbarui di Cloud Supabase & Lokal)!')
     }
   }
@@ -222,6 +286,154 @@ function SecretAdminPage() {
       reader.readAsDataURL(file)
     }
   }
+
+  // Handlers CRUD Logo Sponsor
+  const updateSponsorsState = (newItems) => {
+    setSponsorsItems(newItems)
+    saveStoredSponsors(newItems)
+  }
+
+  const handleOpenAddSponsorModal = () => {
+    setEditingSponsorItem(null)
+    setSponsorForm({ name: '', image: '' })
+    setShowSponsorModal(true)
+  }
+
+  const handleOpenEditSponsorModal = (item) => {
+    setEditingSponsorItem(item)
+    setSponsorForm({
+      name: item.name || item.alt || '',
+      image: item.image || item.src || ''
+    })
+    setShowSponsorModal(true)
+  }
+
+  const handleSaveSponsorItem = async (e) => {
+    e.preventDefault()
+    if (!sponsorForm.image) {
+      alert('Wajib mengunggah file logo sponsor terlebih dahulu!')
+      return
+    }
+
+    const cleanName = sanitizeInput(sponsorForm.name)
+    const finalImage = sponsorForm.image
+
+    try {
+      if (editingSponsorItem) {
+        // Mode Edit (Sync Supabase DB + Local)
+        const updatedPayload = {
+          name: cleanName,
+          image: finalImage
+        }
+
+        await updateSponsorInSupabase(editingSponsorItem.id, updatedPayload)
+
+        const updated = sponsorsItems.map((item) =>
+          item.id === editingSponsorItem.id
+            ? { ...item, ...updatedPayload }
+            : item
+        )
+        updateSponsorsState(updated)
+        await createActivityLog('EDIT', 'Sponsor', `Memperbarui logo sponsor "${cleanName || 'Sponsor'}"`)
+        setToastMessage('Logo Sponsor berhasil diperbarui!')
+      } else {
+        // Mode Tambah (Sync Supabase DB + Local)
+        const newItem = {
+          id: Date.now(),
+          name: cleanName,
+          image: finalImage
+        }
+
+        await addSponsorToSupabase(newItem)
+
+        const updated = [newItem, ...sponsorsItems]
+        updateSponsorsState(updated)
+        await createActivityLog('TAMBAH', 'Sponsor', `Menambahkan logo sponsor baru "${cleanName || 'Sponsor Baru'}"`)
+        setToastMessage('Logo Sponsor baru berhasil ditambahkan!')
+      }
+
+      setShowSponsorModal(false)
+    } catch (err) {
+      console.error('Error saving sponsor item:', err)
+      alert('Gagal menyimpan logo sponsor. Silakan coba lagi.')
+    }
+  }
+
+  const handleDeleteSponsorItem = async (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus logo sponsor ini?')) {
+      const deletedItem = sponsorsItems.find((s) => s.id === id)
+      await deleteSponsorFromSupabase(id)
+      const updated = sponsorsItems.filter((item) => item.id !== id)
+      updateSponsorsState(updated)
+      await createActivityLog('HAPUS', 'Sponsor', `Menghapus logo sponsor "${deletedItem?.name || deletedItem?.alt || 'ID #' + id}"`)
+      setToastMessage('Logo sponsor berhasil dihapus!')
+    }
+  }
+
+  const handleSponsorImageFileUpload = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran file logo terlalu besar! Maksimal 5MB.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setSponsorForm((prev) => ({ ...prev, image: reader.result }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Handlers CRUD Section About
+  const handleSaveAboutProfile = async (e) => {
+    e.preventDefault()
+    if (!aboutForm.title.trim() || !aboutForm.description.trim()) {
+      alert('Judul Besar dan Deskripsi tidak boleh kosong!')
+      return
+    }
+
+    if (!aboutForm.image) {
+      alert('Wajib mengunggah file foto/gambar terlebih dahulu!')
+      return
+    }
+
+    setSavingAbout(true)
+    const payload = {
+      title: sanitizeInput(aboutForm.title),
+      description: sanitizeInput(aboutForm.description),
+      image: aboutForm.image
+    }
+
+    try {
+      await saveAboutProfileToSupabase(payload)
+      saveStoredAboutProfile(payload)
+      await createActivityLog('EDIT', 'About', `Memperbarui Section About "${payload.title}"`)
+      setToastMessage('Data Section About berhasil disimpan & diperbarui!')
+    } catch (err) {
+      console.error('Error saving about profile:', err)
+      alert('Gagal menyimpan data Section About. Silakan coba lagi.')
+    } finally {
+      setSavingAbout(false)
+    }
+  }
+
+  const handleAboutImageFileUpload = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran file foto terlalu besar! Maksimal 5MB.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setAboutForm((prev) => ({ ...prev, image: reader.result }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+
 
   // Check existing session token on mount
   useEffect(() => {
@@ -501,11 +713,19 @@ function SecretAdminPage() {
               </button>
 
               <button
-                className={`admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
-                onClick={() => setActiveTab('settings')}
+                className={`admin-menu-item ${activeTab === 'sponsors' ? 'active' : ''}`}
+                onClick={() => setActiveTab('sponsors')}
               >
-                <Settings size={20} />
-                <span>Pengaturan Sistem</span>
+                <Handshake size={20} />
+                <span>Kelola Sponsor</span>
+              </button>
+
+              <button
+                className={`admin-menu-item ${activeTab === 'about' ? 'active' : ''}`}
+                onClick={() => setActiveTab('about')}
+              >
+                <Info size={20} />
+                <span>Kelola About</span>
               </button>
             </nav>
 
@@ -522,9 +742,20 @@ function SecretAdminPage() {
             {/* TOP HEADER WITH ACCOUNT NAME & LOGOUT */}
             <header className="admin-top-header">
               <div className="admin-header-title">
-                <h1>{activeTab === 'umkm' ? 'Kelola Data UMKM' : activeTab === 'dashboard' ? 'Dashboard Utama' : activeTab === 'gallery' ? 'Dokumentasi Galeri' : 'Pengaturan Sistem'}</h1>
+                <h1>
+                  {activeTab === 'umkm'
+                    ? 'Kelola Data UMKM'
+                    : activeTab === 'dashboard'
+                    ? 'Dashboard Utama'
+                    : activeTab === 'gallery'
+                    ? 'Dokumentasi Galeri'
+                    : activeTab === 'sponsors'
+                    ? 'Kelola Logo Sponsor'
+                    : 'Kelola Section About'}
+                </h1>
                 <span className="admin-header-subtitle">Portal Admin Tanjung Sari, Belakang Padang</span>
               </div>
+
 
               <div className="admin-header-user">
                 <div className="admin-user-profile">
@@ -658,7 +889,8 @@ function SecretAdminPage() {
 
               {/* TAB 2: DASHBOARD OVERVIEW */}
               {activeTab === 'dashboard' && (
-                <div className="admin-overview-container">
+                <div className="admin-overview-container" style={{ display: 'grid', gap: '2rem' }}>
+                  {/* STATISTIK OVERVIEW GRID */}
                   <div className="admin-stats-grid">
                     <div className="admin-stat-card">
                       <div className="admin-stat-icon">
@@ -682,36 +914,104 @@ function SecretAdminPage() {
 
                     <div className="admin-stat-card">
                       <div className="admin-stat-icon">
-                        <ShieldCheck size={24} color="#10B981" />
+                        <Handshake size={24} color="#10B981" />
                       </div>
                       <div>
-                        <div className="admin-stat-value">Aktif</div>
-                        <div className="admin-stat-label">Supabase Database</div>
+                        <div className="admin-stat-value">{sponsorsItems.length} Sponsor</div>
+                        <div className="admin-stat-label">Mitra & Logo Sponsor</div>
+                      </div>
+                    </div>
+
+                    <div className="admin-stat-card">
+                      <div className="admin-stat-icon">
+                        <Activity size={24} color="#8B5CF6" />
+                      </div>
+                      <div>
+                        <div className="admin-stat-value">{activityLogs.length} Log</div>
+                        <div className="admin-stat-label">Riwayat Aktivitas Admin</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="admin-panels-grid">
-                    <div className="admin-panel-item">
-                      <div className="admin-panel-header">
-                        <LayoutDashboard size={20} color="#0b2d55" />
-                        <h3>Kelola Katalog UMKM</h3>
+                  {/* LOG AKTIVITAS PERUBAHAN & INPUT TERBARU */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid rgba(11, 45, 85, 0.12)', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.05)', padding: '1.75rem', display: 'grid', gap: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid rgba(197, 160, 74, 0.3)', paddingBottom: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <Activity size={22} color="#0b2d55" />
+                        <h3 style={{ fontSize: '1.2rem', color: '#0b2d55', margin: 0, fontWeight: '700' }}>
+                          Log Aktivitas Perubahan & Input Terbaru
+                        </h3>
                       </div>
-                      <p>Kelola dan perbarui data UMKM Tanjung Sari secara real-time.</p>
-                      <button className="button button--secondary" onClick={() => setActiveTab('umkm')}>
-                        Ke Tabel CRUD UMKM
-                      </button>
+                      <span style={{ fontSize: '0.82rem', color: '#64748b', background: 'rgba(11, 45, 85, 0.06)', padding: '0.25rem 0.75rem', borderRadius: '12px' }}>
+                        Real-time Audit Trail
+                      </span>
                     </div>
 
-                    <div className="admin-panel-item">
-                      <div className="admin-panel-header">
-                        <ImageIcon size={20} color="#0b2d55" />
-                        <h3>Kelola Galeri Foto & 2 Judul</h3>
-                      </div>
-                      <p>Kelola foto dokumentasi dan 2 judul (Judul Utama & Subjudul/Kategori).</p>
-                      <button className="button button--secondary" onClick={() => setActiveTab('gallery')}>
-                        Buka Kelola Galeri
-                      </button>
+                    <div className="admin-table-wrapper">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Tipe Aksi</th>
+                            <th>Modul Halaman</th>
+                            <th>Keterangan Aktivitas / Perubahan</th>
+                            <th>Tanggal & Waktu</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activityLogs.length > 0 ? (
+                            activityLogs.map((log, idx) => {
+                              const actionBadgeStyle =
+                                log.action_type === 'TAMBAH'
+                                  ? { background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }
+                                  : log.action_type === 'EDIT'
+                                  ? { background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.3)' }
+                                  : { background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)' }
+
+                              return (
+                                <tr key={log.id || idx}>
+                                  <td>
+                                    <span className="admin-tag-category" style={actionBadgeStyle}>
+                                      {log.action_type}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <strong style={{ fontSize: '0.9rem', color: '#0b2d55' }}>
+                                      {log.module_name}
+                                    </strong>
+                                  </td>
+                                  <td>
+                                    <span style={{ fontSize: '0.93rem', color: '#334155' }}>
+                                      {log.title}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.85rem' }}>
+                                      <Clock size={14} color="#64748b" />
+                                      <span>
+                                        {new Date(log.created_at).toLocaleDateString('id-ID', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric'
+                                        })}{' '}
+                                        - {new Date(log.created_at).toLocaleTimeString('id-ID', {
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })} WIB
+                                      </span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={4} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
+                                Belum ada riwayat aktivitas perubahan tercatat.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -721,7 +1021,7 @@ function SecretAdminPage() {
               {activeTab === 'gallery' && (
                 <div className="admin-crud-container">
                   {/* TOOLBAR GALERI */}
-                  <div className="admin-crud-toolbar" style={{ justifyContent: 'flex-end' }}>
+                  <div className="admin-crud-toolbar" style={{ justifyContent: 'flex-start', marginBottom: '1.25rem' }}>
                     <button
                       className="button button--primary button--with-icon"
                       onClick={handleOpenAddGalleryModal}
@@ -801,16 +1101,229 @@ function SecretAdminPage() {
                 </div>
               )}
 
-              {/* TAB 4: PENGATURAN SISTEM PLACEHOLDER */}
-              {activeTab === 'settings' && (
-                <div className="admin-placeholder-panel">
-                  <h2>Pengaturan Sistem</h2>
-                  <p>Halaman ini disiapkan untuk pengaturan sistem dan informasi profil KKN 55.</p>
-                  <button className="button button--secondary" onClick={() => setActiveTab('umkm')}>
-                    Kembali ke Tabel CRUD UMKM
-                  </button>
+              {/* TAB 4: KELOLA LOGO SPONSOR (FULL CRUD SYSTEM) */}
+              {activeTab === 'sponsors' && (
+                <div className="admin-crud-container">
+                  {/* TOOLBAR SPONSOR */}
+                  <div className="admin-crud-toolbar" style={{ justifyContent: 'flex-start', marginBottom: '1.25rem' }}>
+                    <button
+                      className="button button--primary button--with-icon"
+                      onClick={handleOpenAddSponsorModal}
+                    >
+                      <Plus size={18} /> Tambah Logo Sponsor Baru
+                    </button>
+                  </div>
+
+                  {/* TABEL DATA SPONSOR */}
+                  <div className="admin-table-wrapper">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Logo Sponsor</th>
+                          <th>Nama / Instansi Sponsor</th>
+                          <th style={{ textAlign: 'center' }}>Aksi (CRUD)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sponsorsItems.length > 0 ? (
+                          sponsorsItems.map((item) => (
+                            <tr key={item.id}>
+                              <td>
+                                <div
+                                  style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '50%',
+                                    border: '1.5px solid rgba(11, 45, 85, 0.15)',
+                                    overflow: 'hidden',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: '#ffffff',
+                                    padding: '3px'
+                                  }}
+                                >
+                                  <img
+                                    src={item.image || item.src}
+                                    alt={item.name || item.alt || 'Sponsor'}
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                  />
+                                </div>
+                              </td>
+                              <td>
+                                <strong className="admin-item-title" style={{ fontSize: '0.96rem' }}>
+                                  {item.name || item.alt || 'Logo Sponsor'}
+                                </strong>
+                              </td>
+                              <td>
+                                <div className="admin-action-buttons">
+                                  <button
+                                    className="admin-action-btn admin-action-btn--view"
+                                    title="Lihat Pratinjau Sponsor"
+                                    onClick={() => setPreviewSponsorItem(item)}
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                  <button
+                                    className="admin-action-btn admin-action-btn--edit"
+                                    title="Edit Logo Sponsor"
+                                    onClick={() => handleOpenEditSponsorModal(item)}
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button
+                                    className="admin-action-btn admin-action-btn--delete"
+                                    title="Hapus Sponsor"
+                                    onClick={() => handleDeleteSponsorItem(item.id)}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={3} style={{ textAlign: 'center', padding: '3rem' }}>
+                              Data logo sponsor kosong. Klik <strong>"Tambah Logo Sponsor Baru"</strong> untuk mengunggah gambar logo.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
+
+              {/* TAB 5: KELOLA SECTION ABOUT (FULL CRUD SYSTEM) */}
+              {activeTab === 'about' && (
+                <div className="admin-crud-container" style={{ maxWidth: '800px' }}>
+                  <form onSubmit={handleSaveAboutProfile} style={{ display: 'grid', gap: '1.5rem' }}>
+                    <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '16px', border: '1px solid rgba(11, 45, 85, 0.12)', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.05)', display: 'grid', gap: '1.5rem' }}>
+                      <h3 style={{ fontSize: '1.25rem', color: '#0b2d55', margin: 0, fontWeight: '700', borderBottom: '2px solid rgba(197, 160, 74, 0.3)', paddingBottom: '0.75rem' }}>
+                        Kelola Tampilan Section About
+                      </h3>
+
+                      {/* INPUT JUDUL BESAR */}
+                      <div className="admin-form-group">
+                        <label className="admin-label" style={{ fontWeight: '600', color: '#0b2d55' }}>
+                          Judul Besar Section About *
+                        </label>
+                        <input
+                          type="text"
+                          value={aboutForm.title || ''}
+                          onChange={(e) => setAboutForm((prev) => ({ ...prev, title: e.target.value }))}
+                          placeholder="contoh: Tentang Tanjung Sari"
+                          required
+                          className="admin-input admin-input--simple"
+                        />
+                      </div>
+
+                      {/* INPUT DESKRIPSI */}
+                      <div className="admin-form-group">
+                        <label className="admin-label" style={{ fontWeight: '600', color: '#0b2d55' }}>
+                          Deskripsi Section About *
+                        </label>
+                        <textarea
+                          value={aboutForm.description || ''}
+                          onChange={(e) => setAboutForm((prev) => ({ ...prev, description: e.target.value }))}
+                          placeholder="Tuliskan gambaran singkat / profil wilayah Tanjung Sari..."
+                          rows={5}
+                          required
+                          className="admin-input admin-input--simple"
+                          style={{ resize: 'vertical', lineHeight: '1.6' }}
+                        />
+                      </div>
+
+                      {/* INPUT UNGGAH FOTO GAMBAR ABOUT */}
+                      <div className="admin-form-group">
+                        <label className="admin-label" style={{ fontWeight: '600', color: '#0b2d55' }}>
+                          Foto / Gambar Utama Section About *
+                        </label>
+
+                        {aboutForm.image ? (
+                          <div style={{ marginBottom: '0.75rem', position: 'relative' }}>
+                            <img
+                              src={aboutForm.image}
+                              alt="Preview About"
+                              style={{ width: '100%', height: '260px', objectFit: 'cover', borderRadius: '14px', border: '1px solid rgba(197, 160, 74, 0.4)' }}
+                            />
+                            <label
+                              className="button button--secondary button--with-icon"
+                              style={{ position: 'absolute', bottom: '12px', right: '12px', cursor: 'pointer', background: 'rgba(11, 45, 85, 0.85)', backdropFilter: 'blur(4px)', color: '#ffffff', fontSize: '0.82rem', padding: '0.45rem 0.95rem' }}
+                            >
+                              <Upload size={15} /> Ganti Gambar About
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAboutImageFileUpload}
+                                style={{ display: 'none' }}
+                              />
+                            </label>
+                          </div>
+                        ) : (
+                          <label
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.75rem',
+                              padding: '2.5rem 1.5rem',
+                              borderRadius: '14px',
+                              border: '2px dashed rgba(197, 160, 74, 0.4)',
+                              background: 'rgba(11, 45, 85, 0.04)',
+                              cursor: 'pointer',
+                              textAlign: 'center'
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '50%',
+                                background: 'rgba(197, 160, 74, 0.12)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Upload size={24} color="#c5a04a" />
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '0.95rem', fontWeight: '600', color: '#0b2d55', display: 'block' }}>
+                                Klik untuk mengunggah gambar utama section About
+                              </span>
+                              <span style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                                Format yang didukung: PNG, JPG, WEBP (Maksimal 5MB)
+                              </span>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleAboutImageFileUpload}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-start', paddingTop: '0.5rem' }}>
+                        <button
+                          type="submit"
+                          disabled={savingAbout}
+                          className="button button--primary button--with-icon"
+                          style={{ padding: '0.75rem 1.75rem', fontSize: '0.98rem' }}
+                        >
+                          <CheckCircle2 size={18} />
+                          {savingAbout ? 'Memproses...' : 'Simpan Perubahan Section About'}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              )}
+
             </main>
           </div>
 
@@ -971,7 +1484,186 @@ function SecretAdminPage() {
             </div>
           )}
 
+          {/* MODAL FORM TAMBAH / EDIT LOGO SPONSOR */}
+          {showSponsorModal && (
+            <div className="admin-modal-overlay" onClick={() => setShowSponsorModal(false)}>
+              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '550px' }}>
+                <div className="admin-modal-header">
+                  <h3>{editingSponsorItem ? 'Edit Logo Sponsor' : 'Tambah Logo Sponsor Baru'}</h3>
+                  <button className="admin-modal-close" onClick={() => setShowSponsorModal(false)}>
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveSponsorItem}>
+                  <div className="admin-modal-body" style={{ display: 'grid', gap: '1.25rem' }}>
+                    {/* INPUT NAMA / INSTANSI SPONSOR */}
+                    <div className="admin-form-group">
+                      <label className="admin-label">Nama / Instansi (Opsional)</label>
+                      <input
+                        type="text"
+                        value={sponsorForm.name}
+                        onChange={(e) => setSponsorForm((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="contoh: Universitas Maritim Raja Ali Haji (UMRAH)"
+                        className="admin-input admin-input--simple"
+                      />
+                    </div>
+
+                    {/* INPUT UNGGAH GAMBAR LOGO */}
+                    <div className="admin-form-group">
+                      <label className="admin-label">Unggah Gambar Logo Sponsor *</label>
+                      {sponsorForm.image ? (
+                        <div style={{ marginBottom: '0.75rem', position: 'relative' }}>
+                          <div
+                            style={{
+                              width: '100%',
+                              height: '180px',
+                              background: '#ffffff',
+                              borderRadius: '12px',
+                              border: '1px solid rgba(197, 160, 74, 0.4)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '1rem'
+                            }}
+                          >
+                            <img
+                              src={sponsorForm.image}
+                              alt="Preview Logo Sponsor"
+                              style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                            />
+                          </div>
+                          <label
+                            className="button button--secondary button--with-icon"
+                            style={{
+                              position: 'absolute',
+                              bottom: '12px',
+                              right: '12px',
+                              cursor: 'pointer',
+                              background: 'rgba(11, 45, 85, 0.85)',
+                              backdropFilter: 'blur(4px)',
+                              color: '#ffffff',
+                              fontSize: '0.82rem',
+                              padding: '0.4rem 0.85rem'
+                            }}
+                          >
+                            <Upload size={15} /> Ganti File Logo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSponsorImageFileUpload}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <label
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.75rem',
+                            padding: '2.5rem 1.5rem',
+                            borderRadius: '14px',
+                            border: '2px dashed rgba(197, 160, 74, 0.4)',
+                            background: 'rgba(11, 45, 85, 0.04)',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '48px',
+                              height: '48px',
+                              borderRadius: '50%',
+                              background: 'rgba(197, 160, 74, 0.12)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <Upload size={24} color="#c5a04a" />
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.95rem', fontWeight: '600', color: '#0b2d55', display: 'block' }}>
+                              Klik untuk memilih & mengunggah file logo sponsor
+                            </span>
+                            <span style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                              Format yang didukung: PNG, JPG, WEBP (Maksimal 5MB)
+                            </span>
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleSponsorImageFileUpload}
+                            style={{ display: 'none' }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="admin-modal-footer">
+                    <button type="button" className="button button--secondary" onClick={() => setShowSponsorModal(false)}>
+                      Batal
+                    </button>
+                    <button type="submit" className="button button--primary">
+                      Simpan Logo Sponsor
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL PREVIEW SPONSOR */}
+          {previewSponsorItem && (
+            <div className="admin-modal-overlay" onClick={() => setPreviewSponsorItem(null)}>
+              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                <div className="admin-modal-header">
+                  <h3>Pratinjau Logo Sponsor</h3>
+                  <button className="admin-modal-close" onClick={() => setPreviewSponsorItem(null)}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '2rem 1rem' }}>
+                  <div
+                    style={{
+                      width: '120px',
+                      height: '120px',
+                      borderRadius: '50%',
+                      border: '2px solid rgba(197, 160, 74, 0.4)',
+                      background: '#ffffff',
+                      padding: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <img
+                      src={previewSponsorItem.image || previewSponsorItem.src}
+                      alt={previewSponsorItem.name || previewSponsorItem.alt || 'Sponsor'}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+                  <h3 style={{ fontSize: '1.1rem', color: '#ffffff', textAlign: 'center', margin: 0 }}>
+                    {previewSponsorItem.name || previewSponsorItem.alt || 'Logo Sponsor'}
+                  </h3>
+                </div>
+                <div className="admin-modal-footer">
+                  <button className="button button--secondary" onClick={() => setPreviewSponsorItem(null)}>
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* MOCKUP MODAL TAMBAH UMKM BARU */}
+
           {showAddModal && (
             <div className="admin-modal-overlay" onClick={() => setShowAddModal(false)}>
               <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()}>

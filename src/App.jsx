@@ -125,7 +125,7 @@ function App() {
       {currentPage === 'home' ? (
         <main>
           <Hero />
-          <ProfileSection profile={profileData} />
+          <ProfileSection />
           <FeaturedUmkm umkmList={umkmData} />
           <GallerySection />
           <SponsorSection />
