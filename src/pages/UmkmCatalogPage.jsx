@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight, Store } from 'lucide-react'
+import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight, Store, MessageCircle } from 'lucide-react'
 import { getStoredUmkmItems } from '../data/umkm.js'
 
 function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
@@ -261,18 +261,45 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
                   )}
                 </div>
                 <p className="modal-description">{selectedUmkm.description}</p>
-                {selectedUmkm.phone && (
-                  <div className="modal-actions">
-                    <a
-                      href={`https://wa.me/${selectedUmkm.phone.replace(/[^0-9]/g, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="button button--primary"
-                    >
-                      <Phone size={16} /> Hubungi via WhatsApp / Telepon
-                    </a>
-                  </div>
-                )}
+                {(() => {
+                  if (!selectedUmkm.phone) return null
+                  let cleanNum = selectedUmkm.phone.replace(/[^0-9]/g, '')
+                  if (cleanNum.startsWith('0')) {
+                    cleanNum = '62' + cleanNum.slice(1)
+                  }
+                  const waText = encodeURIComponent(`Halo, saya tertarik dan ingin bertanya tentang produk/usaha ${selectedUmkm.name} di Tanjung Sari.`)
+                  const waUrl = `https://wa.me/${cleanNum}?text=${waText}`
+
+                  return (
+                    <div className="modal-actions" style={{ marginTop: '1.25rem' }}>
+                      <a
+                        href={waUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="button button--primary"
+                        style={{
+                          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                          borderColor: '#25D366',
+                          color: '#ffffff',
+                          fontWeight: '600',
+                          boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.6rem',
+                          width: '100%',
+                          padding: '0.85rem 1.5rem',
+                          borderRadius: '10px',
+                          fontSize: '1rem',
+                          textDecoration: 'none',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <MessageCircle size={20} /> Hubungi via WhatsApp ({selectedUmkm.phone})
+                      </a>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           </div>
