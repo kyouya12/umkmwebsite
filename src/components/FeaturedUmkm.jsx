@@ -69,16 +69,6 @@ function FeaturedUmkm({ umkmList = [], isLoading = false, onNavigateToUmkmPage }
               <p className="about-description">
                 {highlightItem.description}
               </p>
-
-              <div style={{ marginTop: '1.25rem' }}>
-                <button
-                  type="button"
-                  onClick={onNavigateToUmkmPage}
-                  className="button button--primary"
-                >
-                  Lihat Detail di Katalog UMKM
-                </button>
-              </div>
             </div>
           </>
         ) : (
