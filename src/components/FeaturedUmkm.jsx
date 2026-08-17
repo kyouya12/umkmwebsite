@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Store, ChevronLeft, ChevronRight } from 'lucide-react'
 
-function FeaturedUmkm({ umkmList = [], isLoading = false }) {
+function FeaturedUmkm({ umkmList = [], isLoading = false, onNavigateToUmkmPage }) {
   // Hanya ambil item yang secara eksplisit diset featured: true
   const highlightItem = umkmList.find((item) => item.featured)
   const [activeImgIdx, setActiveImgIdx] = useState(0)
@@ -70,18 +70,15 @@ function FeaturedUmkm({ umkmList = [], isLoading = false }) {
                 {highlightItem.description}
               </p>
 
-              {highlightItem.phone && (
-                <div style={{ marginTop: '1.25rem' }}>
-                  <a
-                    href={`https://wa.me/${highlightItem.phone.replace(/[^0-9]/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="button button--primary"
-                  >
-                    Hubungi Pemilik UMKM (WhatsApp)
-                  </a>
-                </div>
-              )}
+              <div style={{ marginTop: '1.25rem' }}>
+                <button
+                  type="button"
+                  onClick={onNavigateToUmkmPage}
+                  className="button button--primary"
+                >
+                  Lihat Detail di Katalog UMKM
+                </button>
+              </div>
             </div>
           </>
         ) : (

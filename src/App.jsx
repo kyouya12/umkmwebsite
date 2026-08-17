@@ -157,7 +157,7 @@ function App() {
         <main>
           <Hero />
           <ProfileSection />
-          <FeaturedUmkm umkmList={umkmList} isLoading={isLoadingUmkm} />
+          <FeaturedUmkm umkmList={umkmList} isLoading={isLoadingUmkm} onNavigateToUmkmPage={goToUmkmCatalog} />
           <GallerySection />
           <SponsorSection />
         </main>
