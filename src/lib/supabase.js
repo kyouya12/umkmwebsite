@@ -50,6 +50,96 @@ export async function getUmkmFromSupabase() {
 }
 
 /**
+ * Helper Tambah Data UMKM ke Supabase Database
+ */
+export async function addUmkmToSupabase(item) {
+  try {
+    const { data, error } = await supabase
+      .from('umkm')
+      .insert([item])
+      .select()
+
+    if (error) {
+      console.warn('Supabase add UMKM error:', error.message)
+      return null
+    }
+    return data
+  } catch (err) {
+    console.warn('Supabase add UMKM exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Update Data UMKM di Supabase Database
+ */
+export async function updateUmkmInSupabase(id, item) {
+  try {
+    const { data, error } = await supabase
+      .from('umkm')
+      .update(item)
+      .eq('id', id)
+      .select()
+
+    if (error) {
+      console.warn('Supabase update UMKM error:', error.message)
+      return null
+    }
+    return data
+  } catch (err) {
+    console.warn('Supabase update UMKM exception:', err)
+    return null
+  }
+}
+
+/**
+ * Helper Hapus Data UMKM dari Supabase Database
+ */
+export async function deleteUmkmFromSupabase(id) {
+  try {
+    const { error } = await supabase
+      .from('umkm')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.warn('Supabase delete UMKM error:', error.message)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.warn('Supabase delete UMKM exception:', err)
+    return false
+  }
+}
+
+/**
+ * Helper Atur Highlight UMKM di Supabase Database (featured: true untuk ID target, false untuk sisanya)
+ */
+export async function setHighlightUmkmInSupabase(highlightId) {
+  try {
+    // Setel featured = false hanya untuk item yang saat ini featured (mencegah full-table scan/update)
+    await supabase.from('umkm').update({ featured: false }).eq('featured', true)
+    // Setel featured = true untuk target item
+    const { data, error } = await supabase
+      .from('umkm')
+      .update({ featured: true })
+      .eq('id', highlightId)
+      .select()
+
+    if (error) {
+      console.warn('Supabase set highlight error:', error.message)
+      return null
+    }
+    return data
+  } catch (err) {
+    console.warn('Supabase set highlight exception:', err)
+    return null
+  }
+}
+
+
+/**
  * Helper Ambil Data Galeri dari Supabase Database
  */
 export async function getGalleryFromSupabase() {

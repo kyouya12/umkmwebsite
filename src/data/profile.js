@@ -43,7 +43,7 @@ export const saveStoredAboutProfile = (data) => {
 }
 
 const profileData = {
-  image: '/assets/images/tanjung-sari.jpg',
+  image: '/assets/images/hero-belakang-padang.jpg',
   overview:
     'Kelurahan Tanjung Sari merupakan salah satu wilayah di Kecamatan Belakang Padang, Kota Batam. Berada di kawasan kepulauan, Tanjung Sari memiliki karakter masyarakat pesisir serta berbagai potensi lokal yang menarik untuk dikenal dan dikembangkan.',
   cards: [

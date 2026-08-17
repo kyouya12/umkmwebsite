@@ -27,7 +27,9 @@ import {
   Activity,
   History,
   Sparkles,
-  FileText
+  FileText,
+  Star,
+  Check
 } from 'lucide-react'
 import {
   supabase,
@@ -40,13 +42,49 @@ import {
   updateSponsorInSupabase,
   deleteSponsorFromSupabase,
   getAboutProfileFromSupabase,
-  saveAboutProfileToSupabase
+  saveAboutProfileToSupabase,
+  getUmkmFromSupabase,
+  addUmkmToSupabase,
+  updateUmkmInSupabase,
+  deleteUmkmFromSupabase,
+  setHighlightUmkmInSupabase
 } from '../lib/supabase.js'
-import umkmData from '../data/umkm.js'
+import initialUmkmData, { getStoredUmkmItems, saveStoredUmkmItems, fetchUmkmItemsWithSupabase } from '../data/umkm.js'
 import { getStoredGalleryItems, saveStoredGalleryItems, fetchGalleryItemsWithSupabase, initialGalleryItems } from '../data/gallery.js'
 import { getStoredSponsors, saveStoredSponsors, fetchSponsorsWithSupabase } from '../data/sponsors.js'
 import { getStoredAboutProfile, saveStoredAboutProfile, fetchAboutProfileWithSupabase } from '../data/profile.js'
 import { getStoredActivityLogs, fetchActivityLogsWithSupabase, createActivityLog } from '../data/activityLogs.js'
+
+
+// Helper Kompresi Otomatis Foto (Merubah ukuran & kualitas agar upload super cepat)
+const compressImage = (file, maxWidth = 900, quality = 0.75) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = () => resolve(event.target.result)
+    }
+    reader.onerror = () => resolve(null)
+  })
+}
 
 // Helper Sanitasi & Deteksi Injeksi Keamanan (SQLi, XSS, CSS/Script Injection)
 const sanitizeInput = (str) => {
@@ -105,11 +143,23 @@ function SecretAdminPage() {
   // Admin Navigation Tab State
   const [activeTab, setActiveTab] = useState('umkm') // 'dashboard' | 'umkm' | 'gallery' | 'sponsors' | 'about'
 
-  // CRUD Mockup UMKM State
+  // CRUD UMKM State & Continuous Loading State
+  const [umkmItems, setUmkmItems] = useState(getStoredUmkmItems())
+  const [loadingUmkm, setLoadingUmkm] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('All')
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [showUmkmModal, setShowUmkmModal] = useState(false)
+  const [editingUmkmItem, setEditingUmkmItem] = useState(null)
   const [selectedUmkm, setSelectedUmkm] = useState(null)
+  const [confirmHighlightModal, setConfirmHighlightModal] = useState(null) // { item, actionType: 'set' | 'remove' }
+  const [umkmForm, setUmkmForm] = useState({
+    name: '',
+    location: 'Tanjung Sari',
+    address: '',
+    phone: '',
+    description: '',
+    image: ''
+  })
+
 
   // CRUD Galeri Foto & 2 Judul State
   const [galleryItems, setGalleryItems] = useState(getStoredGalleryItems())
@@ -143,6 +193,18 @@ function SecretAdminPage() {
   // Initial Fetch dari Supabase Database saat Komponen Dimuat
   useEffect(() => {
     async function loadSupabaseData() {
+      setLoadingUmkm(true)
+      try {
+        const umkmDataRes = await fetchUmkmItemsWithSupabase()
+        if (umkmDataRes !== null) {
+          setUmkmItems(umkmDataRes)
+        }
+      } catch (err) {
+        console.warn('Error fetching UMKM from Supabase:', err)
+      } finally {
+        setLoadingUmkm(false)
+      }
+
       const galleryData = await fetchGalleryItemsWithSupabase()
       if (galleryData && galleryData.length > 0) {
         setGalleryItems(galleryData)
@@ -162,13 +224,22 @@ function SecretAdminPage() {
     }
     loadSupabaseData()
 
+    const handleUmkmChange = () => {
+      setUmkmItems(getStoredUmkmItems())
+    }
+
     const handleLogsChange = () => {
       setActivityLogs(getStoredActivityLogs())
     }
 
+    window.addEventListener('umkmDataChanged', handleUmkmChange)
     window.addEventListener('activityLogsChanged', handleLogsChange)
-    return () => window.removeEventListener('activityLogsChanged', handleLogsChange)
+    return () => {
+      window.removeEventListener('umkmDataChanged', handleUmkmChange)
+      window.removeEventListener('activityLogsChanged', handleLogsChange)
+    }
   }, [])
+
 
 
 
@@ -180,6 +251,229 @@ function SecretAdminPage() {
       return () => clearTimeout(timer)
     }
   }, [toastMessage])
+
+  // Handlers CRUD UMKM
+  const updateUmkmState = (newItems) => {
+    setUmkmItems(newItems)
+    saveStoredUmkmItems(newItems)
+  }
+
+  const handleOpenAddUmkmModal = () => {
+    setEditingUmkmItem(null)
+    setUmkmForm({
+      name: '',
+      location: 'Tanjung Sari',
+      address: '',
+      phone: '',
+      description: '',
+      image: '',
+      productImages: []
+    })
+    setShowUmkmModal(true)
+  }
+
+  const handleOpenEditUmkmModal = (item) => {
+    setEditingUmkmItem(item)
+    setUmkmForm({
+      name: item.name || '',
+      location: item.location || 'Tanjung Sari',
+      address: item.address || '',
+      phone: item.phone || '',
+      description: item.description || '',
+      image: item.image || '',
+      productImages: Array.isArray(item.images) ? item.images.slice(0, 3) : []
+    })
+    setShowUmkmModal(true)
+  }
+
+  const handleSaveUmkmItem = async (e) => {
+    e.preventDefault()
+    if (!umkmForm.name.trim() || !umkmForm.description.trim()) {
+      alert('Nama UMKM dan Deskripsi tidak boleh kosong!')
+      return
+    }
+
+    const cleanName = sanitizeInput(umkmForm.name)
+    const cleanLocation = sanitizeInput(umkmForm.location) || 'Tanjung Sari'
+    const cleanAddress = sanitizeInput(umkmForm.address)
+    const cleanPhone = sanitizeInput(umkmForm.phone)
+    const cleanDesc = sanitizeInput(umkmForm.description)
+    const finalImage = umkmForm.image || '/assets/images/hero-belakang-padang.jpg'
+    const finalProductImages = (umkmForm.productImages || []).slice(0, 3)
+
+    try {
+      if (editingUmkmItem) {
+        const updatedItems = umkmItems.map((item) => {
+          if (item.id === editingUmkmItem.id) {
+            return {
+              ...item,
+              name: cleanName,
+              location: cleanLocation,
+              address: cleanAddress,
+              phone: cleanPhone,
+              description: cleanDesc,
+              image: finalImage,
+              images: finalProductImages
+            }
+          }
+          return item
+        })
+
+        const payload = {
+          name: cleanName,
+          location: cleanLocation,
+          address: cleanAddress,
+          phone: cleanPhone,
+          description: cleanDesc,
+          image: finalImage,
+          images: finalProductImages
+        }
+
+        // Optimistic UI update (Langsung Simpan & Tutup Modal Seketika)
+        updateUmkmState(updatedItems)
+        setShowUmkmModal(false)
+        setToastMessage(`Data UMKM "${cleanName}" berhasil diperbarui!`)
+
+        // Asynchronous Background Sync ke Supabase DB & Audit Trail
+        updateUmkmInSupabase(editingUmkmItem.id, payload).catch(console.warn)
+        createActivityLog('EDIT', 'UMKM', `Memperbarui data UMKM "${cleanName}"`).catch(console.warn)
+      } else {
+        const newItem = {
+          id: Date.now(),
+          name: cleanName,
+          location: cleanLocation,
+          address: cleanAddress,
+          phone: cleanPhone,
+          description: cleanDesc,
+          image: finalImage,
+          images: finalProductImages,
+          featured: false
+        }
+
+        const updatedItems = [newItem, ...umkmItems]
+
+        // Optimistic UI update (Langsung Simpan & Tutup Modal Seketika)
+        updateUmkmState(updatedItems)
+        setShowUmkmModal(false)
+        setToastMessage(`UMKM Baru "${cleanName}" berhasil ditambahkan!`)
+
+        // Asynchronous Background Sync ke Supabase DB & Audit Trail
+        addUmkmToSupabase(newItem).catch(console.warn)
+        createActivityLog('TAMBAH', 'UMKM', `Menambahkan UMKM baru "${cleanName}"`).catch(console.warn)
+      }
+    } catch (err) {
+      console.error('Error saving UMKM:', err)
+      alert('Gagal menyimpan data UMKM. Silakan coba lagi.')
+    }
+  }
+
+  const handleDeleteUmkmItem = async (id) => {
+    const targetItem = umkmItems.find((i) => i.id === id)
+    if (window.confirm(`Apakah Anda yakin ingin menghapus data UMKM "${targetItem?.name || 'ini'}"?`)) {
+      const updated = umkmItems.filter((i) => i.id !== id)
+
+      if (targetItem?.featured && updated.length > 0) {
+        updated[0].featured = true
+        setHighlightUmkmInSupabase(updated[0].id).catch(console.warn)
+      }
+
+      updateUmkmState(updated)
+      setToastMessage(`UMKM "${targetItem?.name || 'tersebut'}" berhasil dihapus!`)
+
+      deleteUmkmFromSupabase(id).catch(console.warn)
+      createActivityLog('HAPUS', 'UMKM', `Menghapus UMKM "${targetItem?.name || 'ID #' + id}"`).catch(console.warn)
+    }
+  }
+
+  // Permintaan pergantian highlight dengan modal konfirmasi
+  const handleRequestHighlightChange = (item, actionType) => {
+    setConfirmHighlightModal({ item, actionType })
+  }
+
+  // Eksekusi perubahan highlight setelah dikonfirmasi admin
+  const handleConfirmHighlightAction = async () => {
+    if (!confirmHighlightModal) return
+    const { item, actionType } = confirmHighlightModal
+
+    try {
+      if (actionType === 'set') {
+        const updated = umkmItems.map((u) => ({
+          ...u,
+          featured: u.id === item.id
+        }))
+
+        updateUmkmState(updated)
+        setToastMessage(`"${item.name}" berhasil dijadikan Highlight Utama Beranda!`)
+
+        setHighlightUmkmInSupabase(item.id).catch(console.warn)
+        createActivityLog('HIGHLIGHT', 'UMKM', `Menjadikan UMKM "${item.name}" sebagai Highlight Utama Beranda`).catch(console.warn)
+      } else if (actionType === 'remove') {
+        const updated = umkmItems.map((u) => ({
+          ...u,
+          featured: u.id === item.id ? false : u.featured
+        }))
+
+        updateUmkmState(updated)
+        setToastMessage(`Status Highlight Utama untuk "${item.name}" berhasil dibatalkan.`)
+
+        updateUmkmInSupabase(item.id, { featured: false }).catch(console.warn)
+        createActivityLog('HIGHLIGHT', 'UMKM', `Membatalkan status Highlight Utama untuk "${item.name}"`).catch(console.warn)
+      }
+    } catch (err) {
+      console.error('Error updating highlight:', err)
+      alert('Gagal memperbarui status highlight.')
+    } finally {
+      setConfirmHighlightModal(null)
+    }
+  }
+
+  const handleUmkmImageFileUpload = async (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Ukuran file foto terlalu besar! Maksimal 10MB.')
+        return
+      }
+      // Kompresi otomatis gambar agar ukuran dari 5MB berkurang menjadi ~60KB
+      const compressedBase64 = await compressImage(file, 900, 0.75)
+      if (compressedBase64) {
+        setUmkmForm((prev) => ({ ...prev, image: compressedBase64 }))
+      }
+    }
+  }
+
+  // Handler Unggah 3 Foto Produk Terdebest
+  const handleAddProductImageFile = async (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (umkmForm.productImages.length >= 3) {
+        alert('Maksimal 3 foto produk terdebest!')
+        return
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Ukuran file foto terlalu besar! Maksimal 10MB.')
+        return
+      }
+      const compressedBase64 = await compressImage(file, 900, 0.75)
+      if (compressedBase64) {
+        setUmkmForm((prev) => ({
+          ...prev,
+          productImages: [...prev.productImages, compressedBase64]
+        }))
+      }
+      e.target.value = ''
+    }
+  }
+
+  const handleRemoveProductImage = (index) => {
+    setUmkmForm((prev) => ({
+      ...prev,
+      productImages: prev.productImages.filter((_, i) => i !== index)
+    }))
+  }
+
+
+
 
   // Sync Gallery State dengan localStorage & Realtime Events
   const updateGalleryState = (newItems) => {
@@ -554,13 +848,15 @@ function SecretAdminPage() {
     setLockoutTimer(0)
   }
 
-  // Filter UMKM for CRUD table mockup
-  const filteredUmkm = umkmData.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter
-    return matchesSearch && matchesCategory
+  // Filter UMKM for CRUD table
+  const filteredUmkm = umkmItems.filter((item) => {
+    return (
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
   })
+
+
 
   return (
     <div className="admin-app-layout">
@@ -776,12 +1072,12 @@ function SecretAdminPage() {
 
             {/* CENTER & RIGHT CONTENT BODY */}
             <main className="admin-content-body">
-              {/* TAB 1: KELOLA UMKM (CRUD INTERFACE MOCKUP) */}
+              {/* TAB 1: KELOLA UMKM (CRUD INTERFACE REAL) */}
               {activeTab === 'umkm' && (
                 <div className="admin-crud-container">
                   {/* CRUD TOOLBAR */}
                   <div className="admin-crud-toolbar">
-                    <div className="admin-search-box">
+                    <div className="admin-search-box" style={{ flex: 1 }}>
                       <Search size={18} className="search-icon" />
                       <input
                         type="text"
@@ -793,99 +1089,128 @@ function SecretAdminPage() {
                     </div>
 
                     <div className="admin-crud-actions">
-                      <select
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value)}
-                        className="admin-crud-select"
-                      >
-                        <option value="All">Semua Kategori</option>
-                        <option value="Kuliner">Kuliner</option>
-                        <option value="Jajanan">Jajanan</option>
-                        <option value="Kerajinan">Kerajinan</option>
-                        <option value="Perikanan">Perikanan</option>
-                      </select>
-
                       <button
                         className="button button--primary button--with-icon"
-                        onClick={() => setShowAddModal(true)}
+                        onClick={handleOpenAddUmkmModal}
                       >
                         <Plus size={18} /> Tambah UMKM Baru
                       </button>
                     </div>
                   </div>
 
-                  {/* CRUD DATA TABLE */}
-                  <div className="admin-table-wrapper">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Foto</th>
-                          <th>Nama UMKM</th>
-                          <th>Kategori</th>
-                          <th>Lokasi</th>
-                          <th>Status</th>
-                          <th style={{ textAlign: 'center' }}>Aksi (CRUD)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredUmkm.length > 0 ? (
-                          filteredUmkm.map((item) => (
+                  {/* CRUD DATA TABLE & LOADING / EMPTY STATES */}
+                  {loadingUmkm ? (
+                    <div className="loading-spinner-container">
+                      <div className="loading-spinner"></div>
+                      <span className="loading-text">Memuat data UMKM dari Supabase Database...</span>
+                    </div>
+                  ) : filteredUmkm.length > 0 ? (
+                    <div className="admin-table-wrapper">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Foto</th>
+                            <th>Nama & Kontak UMKM</th>
+                            <th>Alamat / Lokasi</th>
+                            <th>Status Highlight</th>
+                            <th style={{ textAlign: 'center' }}>Aksi (CRUD & Highlight)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredUmkm.map((item) => (
                             <tr key={item.id}>
                               <td>
-                                <img src={item.image} alt={item.name} className="admin-table-img" />
+                                <img
+                                  src={item.image || '/assets/images/tanjung-sari.jpg'}
+                                  alt={item.name}
+                                  className="admin-table-img"
+                                  onError={(e) => {
+                                    e.target.onerror = null
+                                    e.target.src = '/assets/images/tanjung-sari.jpg'
+                                  }}
+                                />
                               </td>
                               <td>
                                 <strong className="admin-item-title">{item.name}</strong>
-                                <p className="admin-item-desc">{item.description.substring(0, 55)}...</p>
+                                {item.phone && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Telp: {item.phone}</div>}
+                                <p className="admin-item-desc">{item.description ? item.description.substring(0, 55) + '...' : ''}</p>
                               </td>
+                              <td>{item.address || item.location || 'Tanjung Sari'}</td>
                               <td>
-                                <span className="admin-tag-category">{item.category}</span>
-                              </td>
-                              <td>{item.location}</td>
-                              <td>
-                                <span className={`admin-status-badge ${item.featured ? 'featured' : ''}`}>
-                                  {item.featured ? 'Highlight' : 'Aktif'}
-                                </span>
+                                {item.featured ? (
+                                  <span className="admin-status-badge featured" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    <Check size={14} /> Highlight Utama ✓
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Biasa</span>
+                                )}
                               </td>
                               <td>
                                 <div className="admin-action-buttons">
                                   <button
                                     className="admin-action-btn admin-action-btn--view"
-                                    title="Lihat Detail"
+                                    title="Lihat Detail UMKM"
                                     onClick={() => setSelectedUmkm(item)}
                                   >
                                     <Eye size={16} />
                                   </button>
+
+                                  {item.featured ? (
+                                    <button
+                                      className="admin-action-btn admin-action-btn--star active"
+                                      style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #16a34a', width: 'auto', padding: '0 0.65rem', gap: '0.35rem', fontSize: '0.82rem', fontWeight: '600' }}
+                                      title="Klik untuk membatalkan Highlight Beranda"
+                                      onClick={() => handleRequestHighlightChange(item, 'remove')}
+                                    >
+                                      <Check size={15} /> Highlighted ✓
+                                    </button>
+                                  ) : (
+                                    <button
+                                      className="admin-action-btn admin-action-btn--star"
+                                      style={{ width: 'auto', padding: '0 0.65rem', gap: '0.35rem', fontSize: '0.82rem', fontWeight: '600' }}
+                                      title="Pilih Sebagai Highlight Beranda Utama"
+                                      onClick={() => handleRequestHighlightChange(item, 'set')}
+                                    >
+                                      <Star size={15} /> Set Highlight
+                                    </button>
+                                  )}
+
                                   <button
                                     className="admin-action-btn admin-action-btn--edit"
-                                    title="Edit Data (Mockup)"
-                                    onClick={() => alert(`Edit Mockup: ${item.name}`)}
+                                    title="Edit Data UMKM"
+                                    onClick={() => handleOpenEditUmkmModal(item)}
                                   >
                                     <Edit2 size={16} />
                                   </button>
+
                                   <button
                                     className="admin-action-btn admin-action-btn--delete"
-                                    title="Hapus Data (Mockup)"
-                                    onClick={() => alert(`Hapus Mockup: ${item.name}`)}
+                                    title="Hapus Data UMKM"
+                                    onClick={() => handleDeleteUmkmItem(item.id)}
                                   >
                                     <Trash2 size={16} />
                                   </button>
                                 </div>
                               </td>
                             </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={6} style={{ textAlign: 'center', padding: '3rem' }}>
-                              Data UMKM tidak ditemukan.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="empty-state-box">
+                      <div className="empty-state-box__icon">
+                        <Store size={30} />
+                      </div>
+                      <h3 className="empty-state-box__title">Belum Ada Data UMKM</h3>
+                      <p className="empty-state-box__desc">
+                        Daftar UMKM saat ini masih kosong. Silakan gunakan tombol &quot;Tambah UMKM Baru&quot; di bagian atas toolbar untuk mendaftarkan usaha lokal.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
+
 
               {/* TAB 2: DASHBOARD OVERVIEW */}
               {activeTab === 'dashboard' && (
@@ -897,10 +1222,11 @@ function SecretAdminPage() {
                         <Store size={24} color="#c5a04a" />
                       </div>
                       <div>
-                        <div className="admin-stat-value">{umkmData.length} Usaha</div>
+                        <div className="admin-stat-value">{umkmItems.length} Usaha</div>
                         <div className="admin-stat-label">Total UMKM Terdaftar</div>
                       </div>
                     </div>
+
 
                     <div className="admin-stat-card">
                       <div className="admin-stat-icon">
@@ -1662,46 +1988,257 @@ function SecretAdminPage() {
             </div>
           )}
 
-          {/* MOCKUP MODAL TAMBAH UMKM BARU */}
-
-          {showAddModal && (
-            <div className="admin-modal-overlay" onClick={() => setShowAddModal(false)}>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()}>
+          {/* MODAL TAMBAH / EDIT DATA UMKM */}
+          {showUmkmModal && (
+            <div className="admin-modal-overlay" onClick={() => setShowUmkmModal(false)} data-lenis-prevent>
+              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} data-lenis-prevent style={{ maxWidth: '600px' }}>
                 <div className="admin-modal-header">
-                  <h3>Tambah UMKM Baru (CRUD Mockup)</h3>
-                  <button className="admin-modal-close" onClick={() => setShowAddModal(false)}>
+                  <h3>{editingUmkmItem ? 'Edit Data UMKM' : 'Tambah UMKM Baru'}</h3>
+                  <button className="admin-modal-close" onClick={() => setShowUmkmModal(false)}>
                     <X size={20} />
                   </button>
                 </div>
-                <div className="admin-modal-body">
-                  <div className="admin-form-group">
-                    <label className="admin-label">Nama UMKM</label>
-                    <input type="text" placeholder="Masukkan nama UMKM" className="admin-input admin-input--simple" />
+                <form onSubmit={handleSaveUmkmItem} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                  <div className="admin-modal-body" data-lenis-prevent style={{ display: 'grid', gap: '1.2rem' }}>
+
+                    <div className="admin-form-group">
+                      <label className="admin-label">Nama UMKM / Usaha *</label>
+                      <input
+                        type="text"
+                        value={umkmForm.name}
+                        onChange={(e) => setUmkmForm({ ...umkmForm, name: e.target.value })}
+                        placeholder="Contoh: Kedai Kopi Ameng"
+                        required
+                        className="admin-input admin-input--simple"
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className="admin-form-group">
+                        <label className="admin-label">Lokasi / Wilayah</label>
+                        <input
+                          type="text"
+                          value={umkmForm.location}
+                          onChange={(e) => setUmkmForm({ ...umkmForm, location: e.target.value })}
+                          placeholder="Tanjung Sari, Belakang Padang"
+                          className="admin-input admin-input--simple"
+                        />
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label className="admin-label">Nomor WhatsApp / HP</label>
+                        <input
+                          type="text"
+                          value={umkmForm.phone}
+                          onChange={(e) => setUmkmForm({ ...umkmForm, phone: e.target.value })}
+                          placeholder="0812-3456-7890"
+                          className="admin-input admin-input--simple"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label className="admin-label">Alamat Lengkap</label>
+                      <input
+                        type="text"
+                        value={umkmForm.address}
+                        onChange={(e) => setUmkmForm({ ...umkmForm, address: e.target.value })}
+                        placeholder="Jl. Dermaga Utama Tanjung Sari No. 12"
+                        className="admin-input admin-input--simple"
+                      />
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label className="admin-label">Deskripsi Usaha & Produk *</label>
+                      <textarea
+                        value={umkmForm.description}
+                        onChange={(e) => setUmkmForm({ ...umkmForm, description: e.target.value })}
+                        placeholder="Deskripsi singkat mengenai produk, keunggulan, atau kisah UMKM..."
+                        rows={3}
+                        required
+                        className="admin-input admin-input--simple"
+                        style={{ resize: 'vertical' }}
+                      ></textarea>
+                    </div>
+
+                    {/* FOTO 1: GAMBAR TOKO (FOTO UTAMA) */}
+                    <div className="admin-form-group">
+                      <label className="admin-label">1. Foto Utama / Gambar Toko (Sampul Utama)</label>
+                      <div className="admin-upload-box">
+                        {umkmForm.image ? (
+                          <div style={{ position: 'relative', width: '100%', height: '140px', borderRadius: '12px', overflow: 'hidden' }}>
+                            <img src={umkmForm.image} alt="Gambar Toko" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <label
+                              className="button button--secondary"
+                              style={{
+                                position: 'absolute',
+                                bottom: '10px',
+                                right: '10px',
+                                cursor: 'pointer',
+                                background: 'rgba(11, 45, 85, 0.85)',
+                                color: '#ffffff',
+                                fontSize: '0.8rem',
+                                padding: '0.35rem 0.75rem'
+                              }}
+                            >
+                              <Upload size={14} /> Ganti Gambar Toko
+                              <input type="file" accept="image/*" onChange={handleUmkmImageFileUpload} style={{ display: 'none' }} />
+                            </label>
+                          </div>
+                        ) : (
+                          <label
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.5rem',
+                              padding: '1.8rem 1rem',
+                              borderRadius: '14px',
+                              border: '2px dashed rgba(197, 160, 74, 0.4)',
+                              background: 'rgba(11, 45, 85, 0.04)',
+                              cursor: 'pointer',
+                              textAlign: 'center'
+                            }}
+                          >
+                            <Upload size={22} color="#c5a04a" />
+                            <span style={{ fontSize: '0.88rem', fontWeight: '600', color: '#0b2d55' }}>
+                              Klik untuk mengunggah Gambar Toko / Foto Utama
+                            </span>
+                            <input type="file" accept="image/*" onChange={handleUmkmImageFileUpload} style={{ display: 'none' }} />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* FOTO 2-4: 3 FOTO PRODUK TERDEBEST */}
+                    <div className="admin-form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <label className="admin-label" style={{ margin: 0 }}>2. Foto Produk Terdebest (Maksimal 3 Foto)</label>
+                        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                          {umkmForm.productImages.length}/3 Foto Terisi
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                        {umkmForm.productImages.map((imgSrc, idx) => (
+                          <div key={idx} style={{ position: 'relative', height: '100px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                            <img src={imgSrc} alt={`Produk ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProductImage(idx)}
+                              style={{
+                                position: 'absolute',
+                                top: '5px',
+                                right: '5px',
+                                background: 'rgba(239, 68, 68, 0.9)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '22px',
+                                height: '22px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer'
+                              }}
+                              title="Hapus foto produk ini"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                            <span style={{ position: 'absolute', bottom: '4px', left: '5px', fontSize: '0.68rem', background: 'rgba(0,0,0,0.65)', color: '#fff', padding: '1px 5px', borderRadius: '4px' }}>
+                              Produk #{idx + 1}
+                            </span>
+                          </div>
+                        ))}
+
+                        {umkmForm.productImages.length < 3 && (
+                          <label
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '100px',
+                              borderRadius: '12px',
+                              border: '2px dashed rgba(197, 160, 74, 0.5)',
+                              background: 'rgba(197, 160, 74, 0.05)',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              padding: '0.5rem'
+                            }}
+                          >
+                            <Plus size={18} color="#c5a04a" />
+                            <span style={{ fontSize: '0.74rem', fontWeight: '600', color: '#0b2d55', marginTop: '4px' }}>
+                              + Tambah Produk
+                            </span>
+                            <input type="file" accept="image/*" onChange={handleAddProductImageFile} style={{ display: 'none' }} />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
                   </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Kategori</label>
-                    <input type="text" placeholder="Kuliner / Kerajinan / Dll" className="admin-input admin-input--simple" />
+
+                  <div className="admin-modal-footer">
+                    <button type="button" className="button button--secondary" onClick={() => setShowUmkmModal(false)}>
+                      Batal
+                    </button>
+                    <button type="submit" className="button button--primary">
+                      Simpan Data UMKM
+                    </button>
                   </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Alamat / Lokasi</label>
-                    <input type="text" placeholder="Tanjung Sari, Belakang Padang" className="admin-input admin-input--simple" />
-                  </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Deskripsi Usaha</label>
-                    <textarea placeholder="Deskripsi singkat mengenai produk..." rows={3} className="admin-input admin-input--simple" style={{ resize: 'vertical' }}></textarea>
-                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL VERIFIKASI HIGHLIGHT */}
+          {confirmHighlightModal && (
+            <div className="admin-modal-overlay" onClick={() => setConfirmHighlightModal(null)}>
+              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+                <div className="admin-modal-header">
+                  <h3>Verifikasi Highlight Utama</h3>
+                  <button className="admin-modal-close" onClick={() => setConfirmHighlightModal(null)}>
+                    <X size={20} />
+                  </button>
                 </div>
-                <div className="admin-modal-footer">
-                  <button className="button button--secondary" onClick={() => setShowAddModal(false)}>
+                <div className="admin-modal-body" style={{ padding: '1.5rem 1rem', textAlign: 'center' }}>
+                  <div style={{ width: '54px', height: '54px', borderRadius: '50%', background: confirmHighlightModal.actionType === 'set' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
+                    {confirmHighlightModal.actionType === 'set' ? (
+                      <Check size={28} color="#10B981" />
+                    ) : (
+                      <X size={28} color="#EF4444" />
+                    )}
+                  </div>
+                  <h4 style={{ fontSize: '1.1rem', color: '#0b2d55', margin: '0 0 0.5rem 0', fontWeight: '700' }}>
+                    {confirmHighlightModal.actionType === 'set' ? 'Jadikan Sebagai Highlight Utama?' : 'Batalkan Status Highlight?'}
+                  </h4>
+                  <p style={{ fontSize: '0.92rem', color: '#64748b', lineHeight: '1.6', margin: 0 }}>
+                    {confirmHighlightModal.actionType === 'set' ? (
+                      <>
+                        Apakah Anda yakin ingin menjadikan produk <strong>&quot;{confirmHighlightModal.item.name}&quot;</strong> sebagai <strong>Highlight Utama</strong> di halaman Beranda?
+                      </>
+                    ) : (
+                      <>
+                        Apakah Anda yakin ingin <strong>membatalkan</strong> status Highlight Utama untuk produk <strong>&quot;{confirmHighlightModal.item.name}&quot;</strong>?
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="admin-modal-footer" style={{ justifyContent: 'center' }}>
+                  <button className="button button--secondary" onClick={() => setConfirmHighlightModal(null)}>
                     Batal
                   </button>
-                  <button className="button button--primary" onClick={() => { alert('Mockup: Data UMKM Baru Disimpan!'); setShowAddModal(false); }}>
-                    Simpan Data (Mockup)
+                  <button className="button button--primary" onClick={handleConfirmHighlightAction}>
+                    {confirmHighlightModal.actionType === 'set' ? 'Ya, Jadikan Highlight ✓' : 'Ya, Batalkan Highlight'}
                   </button>
                 </div>
               </div>
             </div>
           )}
+
+
 
           {/* MOCKUP MODAL DETAIL UMKM */}
           {selectedUmkm && (

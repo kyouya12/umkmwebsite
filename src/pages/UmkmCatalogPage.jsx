@@ -1,30 +1,32 @@
-import { useState } from 'react'
-import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight } from 'lucide-react'
-import umkmData from '../data/umkm.js'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight, Store } from 'lucide-react'
+import { getStoredUmkmItems } from '../data/umkm.js'
 
-const categories = [
-  'Semua',
-  'Kuliner / Kedai Kopi',
-  'Kerajinan Tangan',
-  'Pangan Tradisional',
-  'Produk Olahan',
-  'Fashion & Souvenir',
-  'Souvenir',
-]
-
-function UmkmCatalogPage({ onBackToHome }) {
+function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Semua')
   const [selectedUmkm, setSelectedUmkm] = useState(null)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [localUmkm, setLocalUmkm] = useState(getStoredUmkmItems())
 
-  const filteredUmkm = umkmData.filter((item) => {
+  useEffect(() => {
+    const handleUmkmChange = () => {
+      setLocalUmkm(getStoredUmkmItems())
+    }
+    window.addEventListener('umkmDataChanged', handleUmkmChange)
+    return () => window.removeEventListener('umkmDataChanged', handleUmkmChange)
+  }, [])
+
+  const itemsToUse = umkmList && umkmList.length >= 0 ? umkmList : localUmkm
+  const availableCategories = ['Semua', ...new Set(itemsToUse.map((item) => item.category).filter(Boolean))]
+
+  const filteredUmkm = itemsToUse.filter((item) => {
     const matchesCategory =
       selectedCategory === 'Semua' || item.category === selectedCategory
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase())
+      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.category && item.category.toLowerCase().includes(searchQuery.toLowerCase()))
 
     return matchesCategory && matchesSearch
   })
@@ -68,40 +70,47 @@ function UmkmCatalogPage({ onBackToHome }) {
               </div>
             </div>
 
-            <div className="catalog-categories">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  className={`catalog-cat-btn ${selectedCategory === cat ? 'active' : ''}`}
-                  onClick={() => setSelectedCategory(cat)}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {availableCategories.length > 1 && (
+              <div className="catalog-categories">
+                {availableCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    className={`catalog-cat-btn ${selectedCategory === cat ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Grid Cards View */}
-          {filteredUmkm.length > 0 ? (
+          {/* Grid Cards View & Loading / Empty States */}
+          {isLoading ? (
+            <div className="loading-spinner-container" style={{ padding: '5rem 1rem' }}>
+              <div className="loading-spinner"></div>
+              <span className="loading-text">Memuat katalog UMKM Tanjung Sari dari Supabase Database...</span>
+            </div>
+          ) : filteredUmkm.length > 0 ? (
             <div className="catalog-grid">
               {filteredUmkm.map((item) => (
                 <article key={item.id} className="catalog-card">
                   <div className="catalog-card__image-box">
                     <img
-                      src={item.image}
+                      src={item.image || '/assets/images/hero-belakang-padang.jpg'}
                       alt={item.name}
                       className="catalog-card__img"
                       onError={(e) => {
                         e.target.onerror = null
-                        e.target.src = '/assets/images/tanjung-sari.jpg'
+                        e.target.src = '/assets/images/hero-belakang-padang.jpg'
                       }}
                     />
-                    <span className="catalog-card__category">{item.category}</span>
+                    {item.category && <span className="catalog-card__category">{item.category}</span>}
                   </div>
                   <div className="catalog-card__body">
                     <h3 className="catalog-card__title">{item.name}</h3>
                     <div className="catalog-card__location">
-                      <MapPin size={14} /> {item.location}
+                      <MapPin size={14} /> {item.location || 'Tanjung Sari'}
                     </div>
                     <p className="catalog-card__desc">{item.description}</p>
                     <button
@@ -117,9 +126,19 @@ function UmkmCatalogPage({ onBackToHome }) {
                 </article>
               ))}
             </div>
+          ) : itemsToUse.length === 0 ? (
+            <div className="empty-state-box" style={{ background: '#ffffff', margin: '2rem 0' }}>
+              <div className="empty-state-box__icon">
+                <Store size={32} />
+              </div>
+              <h3 className="empty-state-box__title">Belum Ada Produk UMKM Terdaftar</h3>
+              <p className="empty-state-box__desc">
+                Saat ini belum ada produk UMKM yang dipublikasikan. Data baru akan tampil secara otomatis di sini setelah ditambahkan melalui Panel Admin.
+              </p>
+            </div>
           ) : (
             <div className="catalog-empty">
-              <p>Tidak ada UMKM yang sesuai dengan pencarian Anda.</p>
+              <p>Tidak ada UMKM yang sesuai dengan pencarian atau filter Anda.</p>
               <button
                 className="button button--primary"
                 onClick={() => {
@@ -134,11 +153,11 @@ function UmkmCatalogPage({ onBackToHome }) {
         </div>
       </main>
 
+
       {/* UMKM Detail Lightbox Modal */}
       {selectedUmkm && (() => {
-        const umkmImages = (selectedUmkm.images && selectedUmkm.images.length > 0)
-          ? selectedUmkm.images
-          : [selectedUmkm.image, '/assets/images/tanjung-sari.jpg', '/assets/images/hero-belakang-padang.jpg']
+        const umkmImages = [selectedUmkm.image, ...(Array.isArray(selectedUmkm.images) ? selectedUmkm.images : [])].filter(Boolean)
+
 
         const handlePrev = (e) => {
           e.stopPropagation()
@@ -176,7 +195,7 @@ function UmkmCatalogPage({ onBackToHome }) {
                       className="modal-body__img-large"
                       onError={(e) => {
                         e.target.onerror = null
-                        e.target.src = '/assets/images/tanjung-sari.jpg'
+                        e.target.src = '/assets/images/hero-belakang-padang.jpg'
                       }}
                     />
 
@@ -222,7 +241,7 @@ function UmkmCatalogPage({ onBackToHome }) {
                             alt={`Thumbnail ${idx + 1}`}
                             onError={(e) => {
                               e.target.onerror = null
-                              e.target.src = '/assets/images/tanjung-sari.jpg'
+                              e.target.src = '/assets/images/hero-belakang-padang.jpg'
                             }}
                           />
                         </button>

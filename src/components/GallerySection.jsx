@@ -45,7 +45,7 @@ function GallerySection() {
       window.removeEventListener('galleryDataChanged', syncGallery)
       window.removeEventListener('storage', syncGallery)
     }
-  }, [currentIndex])
+  }, [])
 
   const safeIndex = Math.min(currentIndex, Math.max(0, galleryItems.length - 1))
   const currentItem = galleryItems.length > 0 ? galleryItems[safeIndex] : null

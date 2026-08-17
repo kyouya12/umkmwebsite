@@ -11,11 +11,42 @@ import Footer from './components/Footer.jsx'
 import UmkmCatalogPage from './pages/UmkmCatalogPage.jsx'
 import SecretAdminPage from './pages/SecretAdminPage.jsx'
 import profileData from './data/profile.js'
-import umkmData from './data/umkm.js'
+import initialUmkmData, { getStoredUmkmItems, fetchUmkmItemsWithSupabase } from './data/umkm.js'
+
 
 function App() {
   const [isNavSolid, setIsNavSolid] = useState(false)
   const [currentPage, setCurrentPage] = useState('home') // 'home' | 'umkm-catalog' | 'secret-admin'
+  const [umkmList, setUmkmList] = useState(getStoredUmkmItems())
+  const [isLoadingUmkm, setIsLoadingUmkm] = useState(getStoredUmkmItems().length === 0)
+
+  useEffect(() => {
+    async function loadUmkm() {
+      if (getStoredUmkmItems().length === 0) {
+        setIsLoadingUmkm(true)
+      }
+      try {
+        const data = await fetchUmkmItemsWithSupabase()
+        if (data !== null) {
+          setUmkmList(data)
+        }
+      } catch (err) {
+        console.warn('Error fetching UMKM in App.jsx:', err)
+      } finally {
+        setIsLoadingUmkm(false)
+      }
+    }
+    loadUmkm()
+
+
+
+    const handleUmkmChange = () => {
+      setUmkmList(getStoredUmkmItems())
+    }
+
+    window.addEventListener('umkmDataChanged', handleUmkmChange)
+    return () => window.removeEventListener('umkmDataChanged', handleUmkmChange)
+  }, [])
 
   // Initialize Lenis Smooth Scroll
   useEffect(() => {
@@ -126,12 +157,12 @@ function App() {
         <main>
           <Hero />
           <ProfileSection />
-          <FeaturedUmkm umkmList={umkmData} />
+          <FeaturedUmkm umkmList={umkmList} isLoading={isLoadingUmkm} />
           <GallerySection />
           <SponsorSection />
         </main>
       ) : currentPage === 'umkm-catalog' ? (
-        <UmkmCatalogPage onBackToHome={goToHome} />
+        <UmkmCatalogPage onBackToHome={goToHome} umkmList={umkmList} isLoading={isLoadingUmkm} />
       ) : (
         <SecretAdminPage onBackToHome={goToHome} />
       )}
@@ -140,5 +171,6 @@ function App() {
     </div>
   )
 }
+
 
 export default App

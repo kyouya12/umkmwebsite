@@ -8,7 +8,7 @@ function UmkmCard({ umkm }) {
           className="umkm-card__img"
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = '/assets/images/tanjung-sari.jpg';
+            e.target.src = '/assets/images/hero-belakang-padang.jpg';
           }}
         />
       </div>
