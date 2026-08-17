@@ -1,9 +1,32 @@
+import { useEffect } from 'react'
 import { X } from 'lucide-react'
 
 function UmkmModal({ umkm, onClose }) {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
+
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="umkm-modal-title">
-      <div className="modal-panel fade-up" data-reveal>
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="umkm-modal-title"
+      onClick={onClose}
+      data-lenis-prevent
+      data-lenis-prevent-touch
+      data-lenis-prevent-wheel
+    >
+      <div
+        className="modal-panel"
+        onClick={(e) => e.stopPropagation()}
+        data-lenis-prevent
+        data-lenis-prevent-touch
+        data-lenis-prevent-wheel
+      >
         <div className="modal-header">
           <div>
             <p className="featured-umkm__tag">Local UMKM</p>
@@ -27,3 +50,4 @@ function UmkmModal({ umkm, onClose }) {
 }
 
 export default UmkmModal
+

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight, Store, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight, Store } from 'lucide-react'
 import { getStoredUmkmItems } from '../data/umkm.js'
 
 function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
@@ -16,6 +16,17 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
     window.addEventListener('umkmDataChanged', handleUmkmChange)
     return () => window.removeEventListener('umkmDataChanged', handleUmkmChange)
   }, [])
+
+  useEffect(() => {
+    if (selectedUmkm) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [selectedUmkm])
 
   const itemsToUse = umkmList && umkmList.length >= 0 ? umkmList : localUmkm
   const availableCategories = ['Semua', ...new Set(itemsToUse.map((item) => item.category).filter(Boolean))]
@@ -170,8 +181,20 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
         }
 
         return (
-          <div className="modal-overlay" onClick={() => setSelectedUmkm(null)}>
-            <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-overlay"
+            onClick={() => setSelectedUmkm(null)}
+            data-lenis-prevent
+            data-lenis-prevent-touch
+            data-lenis-prevent-wheel
+          >
+            <div
+              className="modal-panel"
+              onClick={(e) => e.stopPropagation()}
+              data-lenis-prevent
+              data-lenis-prevent-touch
+              data-lenis-prevent-wheel
+            >
               <div className="modal-header">
                 <div>
                   <span className="featured-umkm__tag">{selectedUmkm.category}</span>
@@ -228,7 +251,15 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
 
                   {/* Thumbnail Row */}
                   {umkmImages.length > 1 && (
-                    <div className="modal-gallery__thumbs">
+                    <div
+                      className="modal-gallery__thumbs"
+                      data-lenis-prevent
+                      onWheel={(e) => {
+                        if (e.deltaY !== 0 && e.deltaX === 0) {
+                          e.currentTarget.scrollLeft += e.deltaY
+                        }
+                      }}
+                    >
                       {umkmImages.map((imgUrl, idx) => (
                         <button
                           key={idx}
@@ -261,45 +292,6 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
                   )}
                 </div>
                 <p className="modal-description">{selectedUmkm.description}</p>
-                {(() => {
-                  if (!selectedUmkm.phone) return null
-                  let cleanNum = selectedUmkm.phone.replace(/[^0-9]/g, '')
-                  if (cleanNum.startsWith('0')) {
-                    cleanNum = '62' + cleanNum.slice(1)
-                  }
-                  const waText = encodeURIComponent(`Halo, saya tertarik dan ingin bertanya tentang produk/usaha ${selectedUmkm.name} di Tanjung Sari.`)
-                  const waUrl = `https://wa.me/${cleanNum}?text=${waText}`
-
-                  return (
-                    <div className="modal-actions" style={{ marginTop: '1.25rem' }}>
-                      <a
-                        href={waUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="button button--primary"
-                        style={{
-                          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                          borderColor: '#25D366',
-                          color: '#ffffff',
-                          fontWeight: '600',
-                          boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.6rem',
-                          width: '100%',
-                          padding: '0.85rem 1.5rem',
-                          borderRadius: '10px',
-                          fontSize: '1rem',
-                          textDecoration: 'none',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        <MessageCircle size={20} /> Hubungi via WhatsApp ({selectedUmkm.phone})
-                      </a>
-                    </div>
-                  )
-                })()}
               </div>
             </div>
           </div>

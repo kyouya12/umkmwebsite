@@ -1066,21 +1066,49 @@ main {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
-  background: rgba(11, 45, 85, 0.62);
+  z-index: 9999;
+  background: rgba(11, 45, 85, 0.65);
+  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   padding: 1.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .modal-panel {
   width: min(100%, 56rem);
-  max-height: 92vh;
+  max-height: 90vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
   background: #ffffff;
   border-radius: 28px;
   box-shadow: 0 35px 90px rgba(11, 45, 85, 0.24);
   padding: 2rem;
+}
+
+.modal-panel::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.modal-panel::-webkit-scrollbar-track {
+  background: rgba(11, 45, 85, 0.05);
+  border-radius: 4px;
+}
+
+.modal-panel::-webkit-scrollbar-thumb {
+  background: rgba(11, 45, 85, 0.25);
+  border-radius: 4px;
+}
+
+.modal-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--gold, #c5a04a);
 }
 
 .modal-header {
@@ -2153,6 +2181,9 @@ main {
   overflow-x: auto;
   padding-bottom: 0.3rem;
   scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
 }
 
 .modal-gallery__thumb {
@@ -2943,6 +2974,10 @@ main {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .admin-modal-panel {
@@ -2955,6 +2990,9 @@ main {
   overflow: hidden;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.3);
   animation: adminFadeIn 0.3s ease;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .admin-modal-header {

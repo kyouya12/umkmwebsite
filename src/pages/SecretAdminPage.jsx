@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   LogOut,
   LayoutDashboard,
@@ -189,6 +189,10 @@ function SecretAdminPage() {
 
   // Activity Audit Logs State
   const [activityLogs, setActivityLogs] = useState(getStoredActivityLogs())
+
+  // State Inaktivitas & Hitung Mundur Logout Otomatis (10m Inaktivitas -> 30s Countdown)
+  const [showIdleWarning, setShowIdleWarning] = useState(false)
+  const [idleCountdown, setIdleCountdown] = useState(30)
 
   // Initial Fetch dari Supabase Database saat Komponen Dimuat
   useEffect(() => {
@@ -842,11 +846,91 @@ function SecretAdminPage() {
     await supabase.auth.signOut()
     sessionStorage.removeItem('admin_session_token')
     setIsAuthenticated(false)
+    setShowIdleWarning(false)
+    setIdleCountdown(30)
     setEmail('')
     setPassword('')
     setFailedAttempts(0)
     setLockoutTimer(0)
   }
+
+  const inactivityTimerRef = useRef(null)
+  const showIdleWarningRef = useRef(false)
+
+  useEffect(() => {
+    showIdleWarningRef.current = showIdleWarning
+  }, [showIdleWarning])
+
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current)
+    }
+    if (isAuthenticated) {
+      inactivityTimerRef.current = setTimeout(() => {
+        setShowIdleWarning(true)
+        setIdleCountdown(30)
+      }, 10 * 60 * 1000) // 10 Menit Inaktivitas
+    }
+  }, [isAuthenticated])
+
+  const handleCancelIdleLogout = useCallback(() => {
+    setShowIdleWarning(false)
+    setIdleCountdown(30)
+    resetInactivityTimer()
+  }, [resetInactivityTimer])
+
+  // Effect Inaktivitas: Listener untuk mendeteksi pergerakan/aktivitas pengguna
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowIdleWarning(false)
+      setIdleCountdown(30)
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      return
+    }
+
+    const handleUserActivity = () => {
+      // Jika modal belum muncul, reset timer 10 menit.
+      // Saat modal sedang muncul, pergerakan mouse biasa tidak akan menutup modal secara mendadak.
+      if (!showIdleWarningRef.current) {
+        resetInactivityTimer()
+      }
+    }
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+
+    activityEvents.forEach((evt) => {
+      window.addEventListener(evt, handleUserActivity, { passive: true })
+    })
+
+    resetInactivityTimer()
+
+    return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      activityEvents.forEach((evt) => {
+        window.removeEventListener(evt, handleUserActivity)
+      })
+    }
+  }, [isAuthenticated, resetInactivityTimer])
+
+  // Effect Hitung Mundur Modal (30 detik hitung mundur -> Auto Logout)
+  useEffect(() => {
+    let interval = null
+    if (showIdleWarning && isAuthenticated) {
+      interval = setInterval(() => {
+        setIdleCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval)
+            handleLogout()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [showIdleWarning, isAuthenticated])
 
   // Filter UMKM for CRUD table
   const filteredUmkm = umkmItems.filter((item) => {
@@ -2286,6 +2370,115 @@ function SecretAdminPage() {
             >
               <CheckCircle2 size={20} color="#10B981" />
               <span>{toastMessage}</span>
+            </div>
+          )}
+
+          {/* MODAL INAKTIVITAS & HITUNG MUNDUR AUTO-LOGOUT (5 Detik Tidak Bergerak -> 15 Detik Hitung Mundur) */}
+          {showIdleWarning && (
+            <div
+              className="admin-modal-overlay"
+              style={{ zIndex: 99999, background: 'rgba(6, 24, 46, 0.85)', backdropFilter: 'blur(8px)' }}
+              data-lenis-prevent
+            >
+              <div
+                className="admin-modal-panel admin-animate-in"
+                style={{
+                  maxWidth: '460px',
+                  borderRadius: '24px',
+                  border: '1.5px solid rgba(197, 160, 74, 0.4)',
+                  boxShadow: '0 25px 80px rgba(0, 0, 0, 0.5)',
+                  textAlign: 'center',
+                  overflow: 'hidden'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #0b2d55 0%, #06182e 100%)',
+                    padding: '2.5rem 1.8rem 2rem 1.8rem',
+                    color: '#ffffff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '1rem'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '72px',
+                      height: '72px',
+                      borderRadius: '50%',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '2px solid rgba(239, 68, 68, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <Clock size={36} color="#EF4444" />
+                  </div>
+
+                  <div>
+                    <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.4rem', fontWeight: '800', color: '#ffffff' }}>
+                      Sesi Berakhir Karena Inaktivitas
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.92rem', color: 'rgba(255, 255, 255, 0.75)', lineHeight: '1.5' }}>
+                      Tidak ada aktivitas selama 10 menit. Anda akan ter-logout secara otomatis dalam:
+                    </p>
+                  </div>
+
+                  <div
+                    style={{
+                      margin: '0.5rem 0',
+                      padding: '0.8rem 2.2rem',
+                      borderRadius: '50px',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      border: '1.5px solid #EF4444',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.6rem'
+                    }}
+                  >
+                    <span style={{ fontSize: '2.4rem', fontWeight: '900', color: '#ffffff', fontFamily: 'monospace' }}>
+                      {idleCountdown}
+                    </span>
+                    <span style={{ fontSize: '1rem', fontWeight: '700', color: '#fca5a5', textTransform: 'uppercase' }}>
+                      detik
+                    </span>
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'rgba(255, 255, 255, 0.6)' }}>
+                    Klik &quot;Batal / Saya Masih Di Sini&quot; untuk melanjutkan sesi login Anda.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    padding: '1.25rem 1.5rem',
+                    background: '#ffffff',
+                    display: 'flex',
+                    gap: '0.85rem',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    onClick={handleLogout}
+                    style={{ flex: 1, padding: '0.8rem' }}
+                  >
+                    Logout Sekarang
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={handleCancelIdleLogout}
+                    style={{ flex: 1.4, padding: '0.8rem', background: '#10B981', borderColor: '#10B981', color: '#ffffff' }}
+                  >
+                    Batal / Saya Masih Di Sini
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

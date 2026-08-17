@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { Store, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Store } from 'lucide-react'
 
-function FeaturedUmkm({ umkmList = [], isLoading = false, onNavigateToUmkmPage }) {
+function FeaturedUmkm({ umkmList = [], isLoading = false }) {
   // Hanya ambil item yang secara eksplisit diset featured: true
   const highlightItem = umkmList.find((item) => item.featured)
   const [activeImgIdx, setActiveImgIdx] = useState(0)
@@ -10,6 +10,15 @@ function FeaturedUmkm({ umkmList = [], isLoading = false, onNavigateToUmkmPage }
   const allImages = highlightItem
     ? [highlightItem.image, ...(Array.isArray(highlightItem.images) ? highlightItem.images : [])].filter(Boolean)
     : []
+
+  // Auto slide foto jika ada lebih dari 1 gambar (tanpa perlu tombol)
+  useEffect(() => {
+    if (allImages.length <= 1) return
+    const timer = setInterval(() => {
+      setActiveImgIdx((prev) => (prev + 1) % allImages.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [allImages.length])
 
   return (
     <section id="umkm" className="section-wrapper umkm-profile-section">
@@ -33,26 +42,6 @@ function FeaturedUmkm({ umkmList = [], isLoading = false, onNavigateToUmkmPage }
                     e.target.src = '/assets/images/hero-belakang-padang.jpg'
                   }}
                 />
-
-                {allImages.length > 1 && (
-                  <div style={{ display: 'flex', gap: '0.4rem', position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(11, 45, 85, 0.75)', padding: '4px 10px', borderRadius: '20px', backdropFilter: 'blur(4px)' }}>
-                    {allImages.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveImgIdx(idx)}
-                        style={{
-                          width: activeImgIdx === idx ? '18px' : '8px',
-                          height: '8px',
-                          borderRadius: '4px',
-                          border: 'none',
-                          background: activeImgIdx === idx ? '#c5a04a' : 'rgba(255, 255, 255, 0.5)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -88,3 +77,4 @@ function FeaturedUmkm({ umkmList = [], isLoading = false, onNavigateToUmkmPage }
 }
 
 export default FeaturedUmkm
+
