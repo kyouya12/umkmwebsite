@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight, Store } from 'lucide-react'
+import { ArrowLeft, Search, Phone, MapPin, X, ChevronLeft, ChevronRight, Store, ZoomIn } from 'lucide-react'
 import { getStoredUmkmItems } from '../data/umkm.js'
 
 function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
@@ -7,6 +7,7 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
   const [selectedCategory, setSelectedCategory] = useState('Semua')
   const [selectedUmkm, setSelectedUmkm] = useState(null)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [isFullScreenView, setIsFullScreenView] = useState(false)
   const [localUmkm, setLocalUmkm] = useState(getStoredUmkmItems())
 
   useEffect(() => {
@@ -18,7 +19,7 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
   }, [])
 
   useEffect(() => {
-    if (selectedUmkm) {
+    if (selectedUmkm || isFullScreenView) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -26,7 +27,26 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
     return () => {
       document.body.style.overflow = ''
     }
-  }, [selectedUmkm])
+  }, [selectedUmkm, isFullScreenView])
+
+  // Keyboard navigation for Fullscreen Image Lightbox
+  useEffect(() => {
+    if (!isFullScreenView || !selectedUmkm) return
+    const umkmImages = [selectedUmkm.image, ...(Array.isArray(selectedUmkm.images) ? selectedUmkm.images : [])].filter(Boolean)
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsFullScreenView(false)
+      } else if (e.key === 'ArrowLeft' && umkmImages.length > 1) {
+        setActiveImageIndex((prev) => (prev === 0 ? umkmImages.length - 1 : prev - 1))
+      } else if (e.key === 'ArrowRight' && umkmImages.length > 1) {
+        setActiveImageIndex((prev) => (prev === umkmImages.length - 1 ? 0 : prev + 1))
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullScreenView, selectedUmkm])
 
   const itemsToUse = umkmList && umkmList.length >= 0 ? umkmList : localUmkm
   const availableCategories = ['Semua', ...new Set(itemsToUse.map((item) => item.category).filter(Boolean))]
@@ -41,6 +61,11 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
 
     return matchesCategory && matchesSearch
   })
+
+  const handleCloseDetail = () => {
+    setSelectedUmkm(null)
+    setIsFullScreenView(false)
+  }
 
   return (
     <div className="catalog-page">
@@ -129,6 +154,7 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
                       onClick={() => {
                         setSelectedUmkm(item)
                         setActiveImageIndex(0)
+                        setIsFullScreenView(false)
                       }}
                     >
                       Lihat Detail
@@ -164,11 +190,9 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
         </div>
       </main>
 
-
       {/* UMKM Detail Lightbox Modal */}
       {selectedUmkm && (() => {
         const umkmImages = [selectedUmkm.image, ...(Array.isArray(selectedUmkm.images) ? selectedUmkm.images : [])].filter(Boolean)
-
 
         const handlePrev = (e) => {
           e.stopPropagation()
@@ -183,7 +207,7 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
         return (
           <div
             className="modal-overlay"
-            onClick={() => setSelectedUmkm(null)}
+            onClick={handleCloseDetail}
             data-lenis-prevent
             data-lenis-prevent-touch
             data-lenis-prevent-wheel
@@ -203,7 +227,7 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
                 <button
                   className="modal-close"
                   type="button"
-                  onClick={() => setSelectedUmkm(null)}
+                  onClick={handleCloseDetail}
                 >
                   <X size={20} />
                 </button>
@@ -211,7 +235,11 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
               <div className="modal-body">
                 {/* Multi-Image Gallery Container */}
                 <div className="modal-gallery">
-                  <div className="modal-gallery__main">
+                  <div
+                    className="modal-gallery__main modal-gallery__image-wrapper"
+                    onClick={() => setIsFullScreenView(true)}
+                    title="Klik untuk melihat foto ukuran penuh"
+                  >
                     <img
                       src={umkmImages[activeImageIndex] || selectedUmkm.image}
                       alt={`${selectedUmkm.name} - Foto ${activeImageIndex + 1}`}
@@ -221,6 +249,10 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
                         e.target.src = '/assets/images/hero-belakang-padang.jpg'
                       }}
                     />
+
+                    <div className="modal-gallery__zoom-badge">
+                      <ZoomIn size={15} /> <span>Lihat Ukuran Penuh</span>
+                    </div>
 
                     {umkmImages.length > 1 && (
                       <>
@@ -293,6 +325,79 @@ function UmkmCatalogPage({ onBackToHome, umkmList, isLoading = false }) {
                 </div>
                 <p className="modal-description">{selectedUmkm.description}</p>
               </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Fullscreen Lightbox Image Modal */}
+      {isFullScreenView && selectedUmkm && (() => {
+        const umkmImages = [selectedUmkm.image, ...(Array.isArray(selectedUmkm.images) ? selectedUmkm.images : [])].filter(Boolean)
+        const currentImgSrc = umkmImages[activeImageIndex] || selectedUmkm.image
+
+        const handlePrevFull = (e) => {
+          e.stopPropagation()
+          setActiveImageIndex((prev) => (prev === 0 ? umkmImages.length - 1 : prev - 1))
+        }
+
+        const handleNextFull = (e) => {
+          e.stopPropagation()
+          setActiveImageIndex((prev) => (prev === umkmImages.length - 1 ? 0 : prev + 1))
+        }
+
+        return (
+          <div
+            className="fullscreen-lightbox-overlay"
+            onClick={() => setIsFullScreenView(false)}
+            data-lenis-prevent
+            data-lenis-prevent-touch
+            data-lenis-prevent-wheel
+          >
+            <div className="fullscreen-lightbox-content" onClick={(e) => e.stopPropagation()}>
+              <button
+                className="fullscreen-lightbox-close"
+                type="button"
+                onClick={() => setIsFullScreenView(false)}
+                aria-label="Tutup Tampilan Penuh"
+              >
+                <X size={26} />
+              </button>
+
+              <img
+                src={currentImgSrc}
+                alt={`${selectedUmkm.name} - Ukuran Penuh`}
+                className="fullscreen-lightbox-img"
+                onError={(e) => {
+                  e.target.onerror = null
+                  e.target.src = '/assets/images/hero-belakang-padang.jpg'
+                }}
+              />
+
+              {umkmImages.length > 1 && (
+                <>
+                  <button
+                    className="fullscreen-lightbox-nav fullscreen-lightbox-nav--prev"
+                    type="button"
+                    onClick={handlePrevFull}
+                    aria-label="Foto Sebelumnya"
+                  >
+                    <ChevronLeft size={28} />
+                  </button>
+
+                  <button
+                    className="fullscreen-lightbox-nav fullscreen-lightbox-nav--next"
+                    type="button"
+                    onClick={handleNextFull}
+                    aria-label="Foto Selanjutnya"
+                  >
+                    <ChevronRight size={28} />
+                  </button>
+
+                  <div className="fullscreen-lightbox-counter">
+                    {activeImageIndex + 1} / {umkmImages.length}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )
