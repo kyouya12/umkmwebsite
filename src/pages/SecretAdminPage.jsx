@@ -1190,7 +1190,7 @@ function SecretAdminPage() {
                     </div>
                   ) : filteredUmkm.length > 0 ? (
                     <div className="admin-table-wrapper">
-                      <table className="admin-table">
+                      <table className="admin-table admin-table--umkm">
                         <thead>
                           <tr>
                             <th>Foto</th>
@@ -1352,13 +1352,13 @@ function SecretAdminPage() {
                           Log Aktivitas Perubahan & Input Terbaru
                         </h3>
                       </div>
-                      <span style={{ fontSize: '0.82rem', color: '#64748b', background: 'rgba(11, 45, 85, 0.06)', padding: '0.25rem 0.75rem', borderRadius: '12px' }}>
+                      <span className="admin-logs-badge">
                         Real-time Audit Trail
                       </span>
                     </div>
 
                     <div className="admin-table-wrapper">
-                      <table className="admin-table">
+                      <table className="admin-table admin-table--logs">
                         <thead>
                           <tr>
                             <th>Tipe Aksi</th>
@@ -1442,7 +1442,7 @@ function SecretAdminPage() {
 
                   {/* TABEL DATA GALERI FOTO & 2 JUDUL */}
                   <div className="admin-table-wrapper">
-                    <table className="admin-table">
+                    <table className="admin-table admin-table--gallery">
                       <thead>
                         <tr>
                           <th>Foto</th>
@@ -1526,7 +1526,7 @@ function SecretAdminPage() {
 
                   {/* TABEL DATA SPONSOR */}
                   <div className="admin-table-wrapper">
-                    <table className="admin-table">
+                    <table className="admin-table admin-table--sponsors">
                       <thead>
                         <tr>
                           <th>Logo Sponsor</th>
@@ -1609,7 +1609,7 @@ function SecretAdminPage() {
               {activeTab === 'about' && (
                 <div className="admin-crud-container" style={{ maxWidth: '800px' }}>
                   <form onSubmit={handleSaveAboutProfile} style={{ display: 'grid', gap: '1.5rem' }}>
-                    <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '16px', border: '1px solid rgba(11, 45, 85, 0.12)', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.05)', display: 'grid', gap: '1.5rem' }}>
+                    <div className="admin-about-card">
                       <h3 style={{ fontSize: '1.25rem', color: '#0b2d55', margin: 0, fontWeight: '700', borderBottom: '2px solid rgba(197, 160, 74, 0.3)', paddingBottom: '0.75rem' }}>
                         Kelola Tampilan Section About
                       </h3>
@@ -1740,7 +1740,7 @@ function SecretAdminPage() {
           {/* MODAL FORM TAMBAH / EDIT FOTO & 2 JUDUL GALERI */}
           {showGalleryModal && (
             <div className="admin-modal-overlay" onClick={() => setShowGalleryModal(false)}>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+              <div className="admin-modal-panel admin-modal-panel--large" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
                 <div className="admin-modal-header">
                   <h3>{editingGalleryItem ? 'Edit Foto & 2 Judul Galeri' : 'Tambah Foto Galeri Baru'}</h3>
                   <button className="admin-modal-close" onClick={() => setShowGalleryModal(false)}>
@@ -1865,7 +1865,7 @@ function SecretAdminPage() {
           {/* MODAL PREVIEW DETAIL FOTO GALERI */}
           {previewGalleryItem && (
             <div className="admin-modal-overlay" onClick={() => setPreviewGalleryItem(null)}>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '550px' }}>
+              <div className="admin-modal-panel admin-modal-panel--large" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '550px' }}>
                 <div className="admin-modal-header">
                   <h3>Preview Galeri</h3>
                   <button className="admin-modal-close" onClick={() => setPreviewGalleryItem(null)}>
@@ -1897,7 +1897,7 @@ function SecretAdminPage() {
           {/* MODAL FORM TAMBAH / EDIT LOGO SPONSOR */}
           {showSponsorModal && (
             <div className="admin-modal-overlay" onClick={() => setShowSponsorModal(false)}>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '550px' }}>
+              <div className="admin-modal-panel admin-modal-panel--large" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '550px' }}>
                 <div className="admin-modal-header">
                   <h3>{editingSponsorItem ? 'Edit Logo Sponsor' : 'Tambah Logo Sponsor Baru'}</h3>
                   <button className="admin-modal-close" onClick={() => setShowSponsorModal(false)}>
@@ -2031,7 +2031,7 @@ function SecretAdminPage() {
           {/* MODAL PREVIEW SPONSOR */}
           {previewSponsorItem && (
             <div className="admin-modal-overlay" onClick={() => setPreviewSponsorItem(null)}>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+              <div className="admin-modal-panel admin-modal-panel--large" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
                 <div className="admin-modal-header">
                   <h3>Pratinjau Logo Sponsor</h3>
                   <button className="admin-modal-close" onClick={() => setPreviewSponsorItem(null)}>
@@ -2075,7 +2075,7 @@ function SecretAdminPage() {
           {/* MODAL TAMBAH / EDIT DATA UMKM */}
           {showUmkmModal && (
             <div className="admin-modal-overlay" onClick={() => setShowUmkmModal(false)} data-lenis-prevent>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} data-lenis-prevent style={{ maxWidth: '600px' }}>
+              <div className="admin-modal-panel admin-modal-panel--large" onClick={(e) => e.stopPropagation()} data-lenis-prevent style={{ maxWidth: '600px' }}>
                 <div className="admin-modal-header">
                   <h3>{editingUmkmItem ? 'Edit Data UMKM' : 'Tambah UMKM Baru'}</h3>
                   <button className="admin-modal-close" onClick={() => setShowUmkmModal(false)}>
@@ -2097,7 +2097,7 @@ function SecretAdminPage() {
                       />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="admin-form-row">
                       <div className="admin-form-group">
                         <label className="admin-label">Lokasi / Wilayah</label>
                         <input
@@ -2280,7 +2280,7 @@ function SecretAdminPage() {
           {/* MODAL VERIFIKASI HIGHLIGHT */}
           {confirmHighlightModal && (
             <div className="admin-modal-overlay" onClick={() => setConfirmHighlightModal(null)}>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+              <div className="admin-modal-panel admin-modal-panel--dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
                 <div className="admin-modal-header">
                   <h3>Verifikasi Highlight Utama</h3>
                   <button className="admin-modal-close" onClick={() => setConfirmHighlightModal(null)}>
@@ -2327,7 +2327,7 @@ function SecretAdminPage() {
           {/* MOCKUP MODAL DETAIL UMKM */}
           {selectedUmkm && (
             <div className="admin-modal-overlay" onClick={() => setSelectedUmkm(null)}>
-              <div className="admin-modal-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-modal-panel admin-modal-panel--large" onClick={(e) => e.stopPropagation()}>
                 <div className="admin-modal-header">
                   <h3>Detail UMKM: {selectedUmkm.name}</h3>
                   <button className="admin-modal-close" onClick={() => setSelectedUmkm(null)}>
