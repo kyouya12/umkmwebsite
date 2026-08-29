@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   UserCheck,
   X,
+  Menu,
   AlertCircle,
   Lock,
   Mail,
@@ -142,6 +143,7 @@ function SecretAdminPage() {
 
   // Admin Navigation Tab State
   const [activeTab, setActiveTab] = useState('umkm') // 'dashboard' | 'umkm' | 'gallery' | 'sponsors' | 'about'
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // CRUD UMKM State & Continuous Loading State
   const [umkmItems, setUmkmItems] = useState(getStoredUmkmItems())
@@ -1058,19 +1060,34 @@ function SecretAdminPage() {
         /* DASHBOARD WITH LEFT SIDEBAR, TOP HEADER, AND CENTER/RIGHT CRUD INTERFACE */
         <div className="admin-dashboard-layout admin-animate-in">
           {/* LEFT SIDEBAR NAVIGATION */}
-          <aside className="admin-sidebar">
+          <aside className={`admin-sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
             <div className="admin-sidebar-brand">
-              <img src="/assets/images/logo-kkn55.png" alt="Logo KKN 55" className="admin-sidebar-logo" />
-              <div>
-                <h2 className="admin-sidebar-title">KKN 55 Admin</h2>
-                <span className="admin-sidebar-sub">Kelurahan Tanjung Sari</span>
+              <div className="admin-brand-main">
+                <img src="/assets/images/logo-kkn55.png" alt="Logo KKN 55" className="admin-sidebar-logo" />
+                <div>
+                  <h2 className="admin-sidebar-title">KKN 55 Admin</h2>
+                  <span className="admin-sidebar-sub">Kelurahan Tanjung Sari</span>
+                </div>
               </div>
+
+              {/* Mobile Burger Toggle */}
+              <button 
+                type="button"
+                className="admin-burger-btn" 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Menu"
+              >
+                {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
             </div>
 
             <nav className="admin-sidebar-menu">
               <button
                 className={`admin-menu-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dashboard')}
+                onClick={() => {
+                  setActiveTab('dashboard')
+                  setIsMobileMenuOpen(false)
+                }}
               >
                 <LayoutDashboard size={20} />
                 <span>Dashboard Overview</span>
@@ -1078,7 +1095,10 @@ function SecretAdminPage() {
 
               <button
                 className={`admin-menu-item ${activeTab === 'umkm' ? 'active' : ''}`}
-                onClick={() => setActiveTab('umkm')}
+                onClick={() => {
+                  setActiveTab('umkm')
+                  setIsMobileMenuOpen(false)
+                }}
               >
                 <Store size={20} />
                 <span>Kelola UMKM (CRUD)</span>
@@ -1086,7 +1106,10 @@ function SecretAdminPage() {
 
               <button
                 className={`admin-menu-item ${activeTab === 'gallery' ? 'active' : ''}`}
-                onClick={() => setActiveTab('gallery')}
+                onClick={() => {
+                  setActiveTab('gallery')
+                  setIsMobileMenuOpen(false)
+                }}
               >
                 <ImageIcon size={20} />
                 <span>Galeri Dokumentasi</span>
@@ -1094,7 +1117,10 @@ function SecretAdminPage() {
 
               <button
                 className={`admin-menu-item ${activeTab === 'sponsors' ? 'active' : ''}`}
-                onClick={() => setActiveTab('sponsors')}
+                onClick={() => {
+                  setActiveTab('sponsors')
+                  setIsMobileMenuOpen(false)
+                }}
               >
                 <Handshake size={20} />
                 <span>Kelola Sponsor</span>
@@ -1102,7 +1128,10 @@ function SecretAdminPage() {
 
               <button
                 className={`admin-menu-item ${activeTab === 'about' ? 'active' : ''}`}
-                onClick={() => setActiveTab('about')}
+                onClick={() => {
+                  setActiveTab('about')
+                  setIsMobileMenuOpen(false)
+                }}
               >
                 <Info size={20} />
                 <span>Kelola About</span>

@@ -3469,6 +3469,10 @@ main {
    ========================================== */
 
 /* Compact UI tweaks for small screens */
+.admin-burger-btn {
+  display: none;
+}
+
 .admin-about-card {
   background: #ffffff;
   padding: 2rem;
@@ -3499,31 +3503,47 @@ main {
     flex-direction: column;
   }
 
-  /* Sidebar transformed into a top horizontal bar */
+  /* Sidebar transformed into a top bar with hamburger menu */
   .admin-sidebar {
     width: 100% !important;
     height: auto !important;
     position: sticky !important;
     top: 0;
     z-index: 99 !important;
-    padding: 0.85rem 1rem !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
+    padding: 0.85rem 1.25rem !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
     border-bottom: 1.5px solid rgba(197, 160, 74, 0.3) !important;
     border-right: none !important;
+    transition: all 0.3s ease !important;
   }
 
   .admin-sidebar-brand {
     margin-bottom: 0 !important;
     padding-bottom: 0 !important;
     border-bottom: none !important;
-    gap: 0.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
   }
 
-  .admin-sidebar-brand h2,
+  .admin-brand-main {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+  }
+
+  .admin-sidebar-brand h2 {
+    display: block !important;
+    font-size: 1rem !important;
+    margin: 0 !important;
+  }
+
   .admin-sidebar-brand span.admin-sidebar-sub {
-    display: none !important; /* Hide details on small viewport */
+    display: block !important;
+    font-size: 0.7rem !important;
   }
 
   .admin-sidebar-logo {
@@ -3531,33 +3551,61 @@ main {
     height: 36px !important;
   }
 
+  .admin-burger-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    padding: 0.45rem !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .admin-burger-btn:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+  }
+
+  /* Hide menu list and footer by default on mobile unless .mobile-open */
   .admin-sidebar-menu {
-    flex-direction: row !important;
-    overflow-x: auto !important;
-    flex: 1 !important;
-    justify-content: flex-end !important;
-    gap: 0.35rem !important;
-    scrollbar-width: none; /* Firefox */
-  }
-
-  .admin-sidebar-menu::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
-  }
-
-  .admin-menu-item {
-    padding: 0.55rem 0.75rem !important;
-    font-size: 0.82rem !important;
-    border-radius: 10px !important;
-    gap: 0.35rem !important;
-    white-space: nowrap !important;
-  }
-
-  .admin-menu-item span {
-    display: inline !important; /* show swipeable tab labels */
+    display: none !important;
+    flex-direction: column !important;
+    gap: 0.4rem !important;
+    margin-top: 1rem !important;
+    width: 100% !important;
+    padding: 0.5rem 0 !important;
   }
 
   .admin-sidebar-footer {
-    display: none !important; /* save vertical real estate */
+    display: none !important;
+    margin-top: 0.85rem !important;
+    padding-top: 0.85rem !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* Reveal menu items when open */
+  .admin-sidebar.mobile-open .admin-sidebar-menu {
+    display: flex !important;
+  }
+
+  .admin-sidebar.mobile-open .admin-sidebar-footer {
+    display: flex !important;
+  }
+
+  .admin-menu-item {
+    width: 100% !important;
+    padding: 0.8rem 1rem !important;
+    font-size: 0.92rem !important;
+    border-radius: 12px !important;
+    gap: 0.75rem !important;
+    white-space: normal !important;
+    text-align: left !important;
+  }
+
+  .admin-menu-item span {
+    display: inline !important;
   }
 
   /* Top Header adjust */
