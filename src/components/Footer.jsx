@@ -1,4 +1,4 @@
-import { MapPin, Mail, Phone, ChevronRight } from 'lucide-react'
+import { MapPin, ChevronRight } from 'lucide-react'
 
 function Footer() {
   return (
@@ -42,21 +42,13 @@ function Footer() {
             </ul>
           </div>
 
-          {/* COLUMN 3: ADDRESS & CONTACT INFO */}
+          {/* COLUMN 3: ADDRESS */}
           <div className="footer-col">
-            <h4 className="footer-col-title">Alamat & Kontak</h4>
+            <h4 className="footer-col-title">Alamat</h4>
             <ul className="footer-contact-list">
               <li>
                 <MapPin size={18} className="footer-contact-icon" />
                 <span>Kelurahan Tanjung Sari, Kec. Belakang Padang, Kota Batam, Kepulauan Riau</span>
-              </li>
-              <li>
-                <Mail size={18} className="footer-contact-icon" />
-                <span>kkn55.tanjungsari@umrah.ac.id</span>
-              </li>
-              <li>
-                <Phone size={18} className="footer-contact-icon" />
-                <span>+62 812-3456-7890</span>
               </li>
             </ul>
           </div>
